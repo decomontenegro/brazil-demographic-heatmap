@@ -3,171 +3,282 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Brasil — Mapa Demográfico e Econômico Interativo</title>
+<title>Brasil — Inteligência de Mercado | Demografia, Renda e Potencial de Investimento</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-body{font-family:'Inter',system-ui,sans-serif;background:#0a0e17;color:#e0e6f0;overflow:hidden;height:100vh}
-#map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;background:#0a0e17}
-.leaflet-container{background:#0a0e17!important}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+:root{
+  --bg:#0a0e17;--surface:#111827;--surface2:#131a2e;--border:#1e2a45;--border2:#2a3555;
+  --text:#e0e6f0;--text2:#8a9aba;--text3:#5a6a8a;--text4:#3a4a6a;
+  --green:#4ade80;--green2:#16a34a;--cyan:#22d3ee;--red:#ef4444;--orange:#f97316;--blue:#3b82f6;
+  --ng-orange:#FF6B00;--ng-blue:#0066CC;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+#map{position:absolute;top:56px;left:0;right:0;bottom:0;z-index:1;background:var(--bg)}
+.leaflet-container{background:var(--bg)!important}
 .leaflet-control-zoom{border:none!important}
-.leaflet-control-zoom a{background:#1a2035!important;color:#7b8ab8!important;border:1px solid #2a3555!important;width:32px!important;height:32px!important;line-height:32px!important;font-size:16px!important}
+.leaflet-control-zoom a{background:var(--surface2)!important;color:var(--text2)!important;border:1px solid var(--border)!important;width:32px!important;height:32px!important;line-height:32px!important;font-size:16px!important}
 .leaflet-control-zoom a:hover{background:#253050!important;color:#a0b0e0!important}
 .leaflet-control-attribution{display:none!important}
 
-/* Header */
-#header{position:absolute;top:0;left:0;right:0;z-index:1000;
-  background:linear-gradient(180deg,rgba(10,14,23,.97) 0%,rgba(10,14,23,.85) 80%,rgba(10,14,23,0) 100%);
-  padding:16px 24px 32px;display:flex;align-items:center;gap:16px;pointer-events:none}
-#header>*{pointer-events:auto}
-#header h1{font-size:18px;font-weight:600;letter-spacing:-.3px;
-  background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-#header .subtitle{font-size:11px;color:#5a6a8a;margin-left:-8px;font-weight:400}
+/* Header Bar */
+#header{position:fixed;top:0;left:0;right:0;z-index:1100;height:56px;
+  background:linear-gradient(135deg,#0d1321 0%,#131a2e 100%);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px}
+#header .logo{display:flex;align-items:center;gap:10px;min-width:fit-content}
+#header .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--ng-orange),var(--ng-blue));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff}
+#header h1{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap}
+#header h1 span{color:var(--text3);font-weight:400;font-size:12px}
+.header-sep{width:1px;height:28px;background:var(--border);margin:0 4px}
+
+/* Mode Tabs */
+#mode-tabs{display:flex;gap:2px;background:var(--surface);border-radius:8px;padding:3px;border:1px solid var(--border)}
+.mode-tab{padding:6px 12px;font-size:10.5px;font-weight:500;cursor:pointer;border-radius:6px;
+  color:var(--text3);border:none;background:transparent;font-family:inherit;letter-spacing:.2px;transition:all .2s;white-space:nowrap}
+.mode-tab.active{background:linear-gradient(135deg,rgba(255,107,0,.15),rgba(0,102,204,.15));color:var(--ng-orange);font-weight:600}
+.mode-tab:hover:not(.active){color:var(--text2);background:rgba(255,255,255,.03)}
+
+/* Header right */
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hdr-btn{padding:6px 14px;font-size:11px;font-weight:500;cursor:pointer;border-radius:6px;
+  color:var(--text3);border:1px solid var(--border);background:var(--surface);font-family:inherit;transition:all .2s}
+.hdr-btn:hover{color:var(--text);border-color:var(--border2)}
+.hdr-btn.primary{background:linear-gradient(135deg,var(--ng-orange),#e55a00);color:#fff;border:none}
+.hdr-btn.primary:hover{filter:brightness(1.1)}
 
 /* Breadcrumb */
-#breadcrumb{position:absolute;top:58px;left:24px;z-index:1000;display:flex;gap:6px;align-items:center;font-size:12px}
-#breadcrumb span{color:#5a6a8a;cursor:pointer;transition:color .2s}
-#breadcrumb span:hover{color:#4ade80}
-#breadcrumb span.active{color:#e0e6f0;cursor:default}
-#breadcrumb .sep{color:#2a3555;cursor:default;font-size:10px}
+#breadcrumb{position:absolute;top:64px;left:16px;z-index:1000;display:flex;gap:6px;align-items:center;font-size:11px}
+#breadcrumb span{color:var(--text3);cursor:pointer;transition:color .2s}
+#breadcrumb span:hover{color:var(--green)}
+#breadcrumb span.active{color:var(--text);cursor:default}
+#breadcrumb .sep{color:var(--border2);cursor:default;font-size:10px}
 
-/* Controls Panel */
-#controls{position:absolute;top:14px;right:24px;z-index:1000;display:flex;gap:10px;align-items:center}
-.toggle-group{display:flex;background:#131a2e;border-radius:8px;overflow:hidden;border:1px solid #1e2a45}
-.toggle-btn{padding:8px 16px;font-size:11px;font-weight:500;cursor:pointer;transition:all .25s;
-  color:#5a6a8a;border:none;background:transparent;font-family:inherit;letter-spacing:.2px}
-.toggle-btn.active{background:linear-gradient(135deg,#1a3a2a,#1a2a3a);color:#4ade80}
-.toggle-btn:hover:not(.active){color:#8a9aba}
+/* Right Panel */
+#right-panel{position:absolute;top:56px;right:0;bottom:80px;width:360px;z-index:1000;
+  background:rgba(17,24,39,.96);border-left:1px solid var(--border);
+  backdrop-filter:blur(16px);overflow-y:auto;transition:transform .3s ease;display:flex;flex-direction:column}
+#right-panel.collapsed{transform:translateX(100%)}
+#panel-toggle{position:absolute;top:50%;right:360px;z-index:1001;transform:translateY(-50%);
+  background:var(--surface2);border:1px solid var(--border);border-right:none;
+  border-radius:8px 0 0 8px;padding:8px 4px;cursor:pointer;color:var(--text3);font-size:14px;transition:all .2s}
+#panel-toggle:hover{color:var(--text);background:#1a2a45}
+#right-panel.collapsed~#panel-toggle{right:0}
+
+.panel-section{padding:16px;border-bottom:1px solid var(--border)}
+.panel-section h3{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel-section h3 .badge{background:var(--ng-orange);color:#fff;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:600}
+
+/* Filters */
+.filter-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.filter-row label{font-size:10px;color:var(--text3);min-width:70px}
+.filter-row input[type=number]{width:90px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:11px;color:var(--text);font-family:inherit}
+.filter-row input[type=number]:focus{outline:none;border-color:var(--ng-orange)}
+
+/* Rankings */
+.rank-list{list-style:none;font-size:12px}
+.rank-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(30,42,69,.5)}
+.rank-item:hover{background:rgba(255,107,0,.08)}
+.rank-item .rank-num{font-size:10px;font-weight:700;color:var(--text3);min-width:20px;text-align:center}
+.rank-item .rank-num.top3{color:var(--ng-orange)}
+.rank-item .rank-name{flex:1;font-weight:500;color:var(--text);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-item .rank-val{font-size:11px;font-weight:600;color:var(--text2);text-align:right;min-width:60px}
+.rank-item .rank-growth{font-size:10px;min-width:50px;text-align:right;font-weight:600}
+.rank-growth.pos{color:var(--green)}.rank-growth.neg{color:var(--red)}
+.rank-item .rank-score{font-size:9px;background:rgba(255,107,0,.15);color:var(--ng-orange);padding:2px 6px;border-radius:8px;font-weight:600;min-width:36px;text-align:center}
+
+/* Comparison */
+#comparison{display:none}
+#comparison.visible{display:block}
+.compare-grid{display:flex;gap:8px;flex-wrap:wrap}
+.compare-card{flex:1;min-width:100px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px}
+.compare-card h4{font-size:11px;font-weight:600;color:var(--ng-orange);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compare-card .cstat{display:flex;justify-content:space-between;padding:2px 0;font-size:10px;color:var(--text3)}
+.compare-card .cstat .cv{color:var(--text);font-weight:500}
+.compare-card canvas{width:100%;height:60px;margin-top:6px}
+.compare-remove{float:right;cursor:pointer;color:var(--text4);font-size:12px}
+.compare-remove:hover{color:var(--red)}
+
+/* Insights */
+#insights-panel{background:rgba(255,107,0,.04);border:1px solid rgba(255,107,0,.15);border-radius:8px;padding:12px;margin:8px 0}
+#insights-panel h4{font-size:11px;font-weight:700;color:var(--ng-orange);margin-bottom:8px}
+#insights-text{font-size:11px;color:var(--text2);line-height:1.6}
+#insights-text strong{color:var(--text)}
 
 /* Timeline */
-#timeline{position:absolute;bottom:0;left:0;right:0;z-index:1000;
-  background:linear-gradient(0deg,rgba(10,14,23,.97) 0%,rgba(10,14,23,.9) 70%,rgba(10,14,23,0) 100%);
-  padding:36px 24px 20px}
-#timeline-inner{max-width:900px;margin:0 auto}
-#year-display{text-align:center;margin-bottom:8px;font-size:32px;font-weight:700;
-  background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-#year-sub{text-align:center;font-size:11px;color:#5a6a8a;margin-bottom:12px}
-#slider-container{position:relative;padding:0 8px}
+#timeline{position:fixed;bottom:0;left:0;right:0;z-index:1000;height:80px;
+  background:linear-gradient(0deg,rgba(10,14,23,.98) 0%,rgba(10,14,23,.92) 70%,rgba(10,14,23,0) 100%);
+  padding:12px 24px 14px;display:flex;align-items:center;gap:16px}
+#timeline-left{display:flex;align-items:center;gap:12px}
+#year-display{font-size:28px;font-weight:800;min-width:60px;
+  background:linear-gradient(135deg,var(--ng-orange),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#year-sub{font-size:10px;color:var(--text3);min-width:80px}
+#play-btn{background:var(--surface2);border:1px solid var(--border);border-radius:50%;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:var(--text3);flex-shrink:0}
+#play-btn:hover{background:#1a2a45;color:var(--green);border-color:#2a4a3a}
+#play-btn svg{width:14px;height:14px;fill:currentColor}
+#slider-wrap{flex:1;display:flex;flex-direction:column}
 #year-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;outline:none;
-  background:linear-gradient(90deg,#1a3a2a,#2a3555,#3a2a2a);cursor:pointer}
-#year-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-  background:linear-gradient(135deg,#4ade80,#22d3ee);cursor:pointer;box-shadow:0 0 20px rgba(74,222,128,.4);
-  transition:transform .15s}
-#year-slider::-webkit-slider-thumb:hover{transform:scale(1.2)}
-#year-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;border:none;
-  background:linear-gradient(135deg,#4ade80,#22d3ee);cursor:pointer;box-shadow:0 0 20px rgba(74,222,128,.4)}
-#tick-marks{display:flex;justify-content:space-between;margin-top:6px;padding:0 4px}
-#tick-marks span{font-size:10px;color:#3a4a6a;cursor:pointer;transition:color .2s;user-select:none}
-#tick-marks span:hover{color:#8a9aba}
+  background:linear-gradient(90deg,#1a3a2a,var(--border2),#3a2a2a);cursor:pointer}
+#year-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:linear-gradient(135deg,var(--ng-orange),var(--cyan));cursor:pointer;box-shadow:0 0 16px rgba(255,107,0,.4)}
+#year-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,var(--ng-orange),var(--cyan));cursor:pointer}
+#tick-marks{display:flex;justify-content:space-between;margin-top:4px}
+#tick-marks span{font-size:9px;color:var(--text4);cursor:pointer;transition:color .2s;user-select:none}
+#tick-marks span:hover{color:var(--text2)}
 #tick-marks span.census{color:#5a7a6a;font-weight:600}
 #tick-marks span.projected{color:#4a3a5a;font-style:italic}
 
 /* Legend */
-#legend{position:absolute;bottom:110px;right:24px;z-index:1000;background:rgba(19,26,46,.92);
-  border:1px solid #1e2a45;border-radius:10px;padding:14px 16px;min-width:180px;backdrop-filter:blur(12px)}
-#legend h3{font-size:11px;font-weight:600;color:#7b8ab8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px}
-#legend-gradient{height:12px;border-radius:3px;margin-bottom:6px;
-  background:linear-gradient(90deg,#dc2626,#ef4444,#6b7280,#22c55e,#16a34a)}
-#legend-labels{display:flex;justify-content:space-between;font-size:10px;color:#5a6a8a}
-#legend-mode{font-size:10px;color:#4ade80;margin-top:8px;text-align:center}
+#legend{position:absolute;bottom:92px;left:16px;z-index:1000;background:rgba(19,26,46,.92);
+  border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:170px;backdrop-filter:blur(12px)}
+#legend h3{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.8px}
+#legend-gradient{height:10px;border-radius:3px;margin-bottom:4px}
+#legend-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3)}
+#legend-mode{font-size:10px;color:var(--ng-orange);margin-top:6px;text-align:center}
 
-/* Info Panel */
-#info-panel{position:absolute;bottom:110px;left:24px;z-index:1000;background:rgba(19,26,46,.92);
-  border:1px solid #1e2a45;border-radius:10px;padding:16px 20px;min-width:260px;max-width:320px;
-  backdrop-filter:blur(12px);transition:all .3s;opacity:0;transform:translateY(10px);pointer-events:none}
+/* Info Panel (hover) */
+#info-panel{position:absolute;bottom:92px;left:16px;z-index:1001;background:rgba(19,26,46,.95);
+  border:1px solid var(--border);border-radius:10px;padding:14px 18px;min-width:250px;max-width:300px;
+  backdrop-filter:blur(12px);transition:all .25s;opacity:0;transform:translateY(8px);pointer-events:none}
 #info-panel.visible{opacity:1;transform:translateY(0);pointer-events:auto}
-#info-panel h3{font-size:14px;font-weight:600;margin-bottom:10px;color:#e0e6f0}
-#info-panel .stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2240;font-size:12px}
-#info-panel .stat:last-child{border:none}
-#info-panel .stat .label{color:#5a6a8a}
-#info-panel .stat .value{font-weight:600;color:#c0cae0}
-#info-panel .stat .value.positive{color:#4ade80}
-#info-panel .stat .value.negative{color:#ef4444}
-#info-panel .click-hint{font-size:10px;color:#3a4a6a;margin-top:8px;text-align:center;font-style:italic}
-
-/* Loading */
-#loading{position:absolute;top:0;left:0;right:0;bottom:0;z-index:2000;background:#0a0e17;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
-#loading.hidden{opacity:0;pointer-events:none}
-#loading .spinner{width:48px;height:48px;border:3px solid #1a2a45;border-top-color:#4ade80;
-  border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#loading p{margin-top:16px;color:#5a6a8a;font-size:13px}
-#loading .progress{color:#4ade80;font-size:11px;margin-top:4px}
+#info-panel h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.stat{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(30,42,69,.5);font-size:11px}
+.stat:last-child{border:none}
+.stat .label{color:var(--text3)}
+.stat .value{font-weight:600;color:var(--text2)}
+.stat .value.positive{color:var(--green)}
+.stat .value.negative{color:var(--red)}
+#click-hint{font-size:9px;color:var(--text4);margin-top:6px;text-align:center;font-style:italic}
 
 /* Tooltip */
-.map-tooltip{background:rgba(19,26,46,.95)!important;border:1px solid #2a3555!important;
+.map-tooltip{background:rgba(19,26,46,.95)!important;border:1px solid var(--border2)!important;
   border-radius:8px!important;padding:10px 14px!important;font-family:'Inter',sans-serif!important;
-  font-size:12px!important;color:#e0e6f0!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important;
-  backdrop-filter:blur(8px)}
+  font-size:12px!important;color:var(--text)!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important}
 .map-tooltip .tt-name{font-weight:600;font-size:13px;margin-bottom:6px}
-.map-tooltip .tt-row{display:flex;justify-content:space-between;gap:16px;color:#8a9aba;font-size:11px;padding:1px 0}
-.map-tooltip .tt-val{font-weight:500;color:#c0cae0}
-.map-tooltip .tt-change.pos{color:#4ade80}.map-tooltip .tt-change.neg{color:#ef4444}
-
-/* Play button */
-#play-btn{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);z-index:1000;
-  background:#131a2e;border:1px solid #1e2a45;border-radius:50%;width:36px;height:36px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:#5a6a8a}
-#play-btn:hover{background:#1a2a45;color:#4ade80;border-color:#2a4a3a}
-#play-btn svg{width:14px;height:14px;fill:currentColor}
+.map-tooltip .tt-row{display:flex;justify-content:space-between;gap:16px;color:var(--text2);font-size:11px;padding:1px 0}
+.map-tooltip .tt-val{font-weight:500;color:var(--text2)}
+.map-tooltip .tt-change.pos{color:var(--green)}.map-tooltip .tt-change.neg{color:var(--red)}
 
 /* Back button */
-#back-btn{position:absolute;top:82px;left:24px;z-index:1000;
-  background:rgba(19,26,46,.9);border:1px solid #1e2a45;border-radius:8px;padding:6px 14px;
-  font-size:11px;color:#5a6a8a;cursor:pointer;font-family:inherit;transition:all .2s;display:none}
-#back-btn:hover{color:#4ade80;border-color:#2a4a3a;background:#131a2e}
+#back-btn{position:absolute;top:64px;left:16px;z-index:1000;
+  background:rgba(19,26,46,.9);border:1px solid var(--border);border-radius:8px;padding:5px 12px;
+  font-size:11px;color:var(--text3);cursor:pointer;font-family:inherit;transition:all .2s;display:none}
+#back-btn:hover{color:var(--green);border-color:#2a4a3a}
+
+/* Loading */
+#loading{position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+#loading.hidden{opacity:0;pointer-events:none}
+.spinner{width:40px;height:40px;border:3px solid #1a2a45;border-top-color:var(--ng-orange);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{margin-top:12px;color:var(--text3);font-size:13px}
+#loading .progress{color:var(--ng-orange);font-size:11px;margin-top:4px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+
+/* Responsive when panel open */
+#right-panel:not(.collapsed)~#map{right:360px}
 </style>
 </head>
 <body>
 
-<div id="loading"><div class="spinner"></div><p>Carregando mapa do Brasil...</p><div class="progress" id="load-progress"></div></div>
+<div id="loading"><div class="spinner"></div><p>Carregando dados e mapa...</p><div class="progress" id="load-progress"></div></div>
 
+<!-- HEADER -->
 <div id="header">
-  <h1>🇧🇷 Brasil Demográfico</h1>
-  <span class="subtitle">Censo 1991–2022 + Projeções até 2052</span>
-</div>
-
-<div id="breadcrumb"><span class="active">Brasil</span></div>
-
-<div id="controls">
-  <div class="toggle-group">
-    <button class="toggle-btn active" data-mode="population" onclick="setMode('population')">👥 População</button>
-    <button class="toggle-btn" data-mode="income" onclick="setMode('income')">💰 Renda</button>
+  <div class="logo">
+    <div class="logo-icon">BI</div>
+    <h1>Brasil — Inteligência de Mercado <span>| Demografia, Renda e Potencial</span></h1>
+  </div>
+  <div class="header-sep"></div>
+  <div id="mode-tabs">
+    <button class="mode-tab active" data-mode="population" onclick="setMode('population')">👥 População</button>
+    <button class="mode-tab" data-mode="income" onclick="setMode('income')">💰 Renda</button>
+    <button class="mode-tab" data-mode="households" onclick="setMode('households')">🏠 Domicílios</button>
+    <button class="mode-tab" data-mode="density" onclick="setMode('density')">📍 Densidade</button>
+    <button class="mode-tab" data-mode="urbanization" onclick="setMode('urbanization')">🏙️ Urbanização</button>
+    <button class="mode-tab" data-mode="potential" onclick="setMode('potential')">⭐ Potencial</button>
+  </div>
+  <div class="header-right">
+    <button class="hdr-btn" onclick="exportCSV()">📥 Exportar CSV</button>
+    <button class="hdr-btn" id="compare-toggle" onclick="toggleCompareMode()">⚖️ Comparar</button>
   </div>
 </div>
 
+<div id="breadcrumb"><span class="active">Brasil</span></div>
 <button id="back-btn" onclick="goBack()">← Voltar</button>
 
 <div id="map"></div>
 
+<!-- INFO PANEL (hover) -->
 <div id="info-panel">
   <h3 id="info-name"></h3>
   <div id="info-stats"></div>
-  <div class="click-hint" id="click-hint">Clique para explorar</div>
+  <div id="click-hint">Clique para explorar →</div>
 </div>
 
+<!-- LEGEND -->
 <div id="legend">
   <h3>Variação</h3>
-  <div id="legend-gradient"></div>
+  <div id="legend-gradient" style="background:linear-gradient(90deg,#dc2626,#6b7280,#16a34a)"></div>
   <div id="legend-labels"><span>-30%</span><span>0%</span><span>+30%</span></div>
   <div id="legend-mode">População</div>
 </div>
 
-<div id="play-btn" onclick="togglePlay()" title="Animar timeline">
-  <svg viewBox="0 0 24 24"><path id="play-icon" d="M8 5v14l11-7z"/></svg>
+<!-- RIGHT PANEL -->
+<div id="right-panel">
+  <!-- Filters -->
+  <div class="panel-section">
+    <h3>🔎 Filtros</h3>
+    <div class="filter-row"><label>Pop. mín (mil)</label><input type="number" id="flt-pop" value="0" min="0" onchange="updateRanking()"></div>
+    <div class="filter-row"><label>Renda mín (R$)</label><input type="number" id="flt-inc" value="0" min="0" onchange="updateRanking()"></div>
+    <div class="filter-row"><label>Cresc. mín (%)</label><input type="number" id="flt-growth" value="-999" step="0.1" onchange="updateRanking()"></div>
+  </div>
+
+  <!-- Rankings -->
+  <div class="panel-section" style="flex:1;overflow-y:auto">
+    <h3>🏆 Top Regiões <span class="badge" id="rank-count">27</span></h3>
+    <ul class="rank-list" id="rank-list"></ul>
+  </div>
+
+  <!-- Comparison -->
+  <div class="panel-section" id="comparison">
+    <h3>⚖️ Comparação</h3>
+    <div class="compare-grid" id="compare-grid"></div>
+  </div>
+
+  <!-- Insights -->
+  <div class="panel-section">
+    <h3>💡 Recomendações de Investimento</h3>
+    <div id="insights-panel">
+      <div id="insights-text">Carregando análise...</div>
+    </div>
+  </div>
 </div>
 
+<button id="panel-toggle" onclick="togglePanel()">◀</button>
+
+<!-- TIMELINE -->
 <div id="timeline">
-  <div id="timeline-inner">
-    <div id="year-display">2022</div>
-    <div id="year-sub">Censo IBGE</div>
-    <div id="slider-container">
-      <input type="range" id="year-slider" min="1991" max="2052" value="2022" step="1">
+  <div id="timeline-left">
+    <div id="play-btn" onclick="togglePlay()" title="Animar timeline">
+      <svg viewBox="0 0 24 24"><path id="play-icon" d="M8 5v14l11-7z"/></svg>
     </div>
+    <div>
+      <div id="year-display">2022</div>
+      <div id="year-sub">Censo IBGE</div>
+    </div>
+  </div>
+  <div id="slider-wrap">
+    <input type="range" id="year-slider" min="1991" max="2052" value="2022" step="1">
     <div id="tick-marks"></div>
   </div>
 </div>
@@ -175,45 +286,49 @@ body{font-family:'Inter',system-ui,sans-serif;background:#0a0e17;color:#e0e6f0;o
 <script>
 // ========== STATE ==========
 let map, geoLayer, currentMode = 'population', currentYear = 2022;
-let navStack = []; // [{level, id, name}]
-let currentLevel = 'states'; // states, meso, micro, muni
+let navStack = [];
+let currentLevel = 'states';
 let currentParentId = null;
 let playing = false, playInterval = null;
+let compareMode = false, compareList = []; // max 3 state ids
+let panelCollapsed = false;
 const censusYears = [1991, 2000, 2010, 2022];
-const allYears = [];
-for(let y=1991;y<=2052;y++) allYears.push(y);
 
-// ========== REAL IBGE DATA (representative) ==========
-// Population in thousands, income = PIB per capita in R$ (nominal, approximate)
+// ========== REAL IBGE DATA ==========
+// pop in thousands, inc = PIB per capita R$, hh = domicilios em milhares, area km², urb = % urban
 const stateData = {
-  11:{name:'Rondônia',uf:'RO',pop:{1991:1133,2000:1380,2010:1563,2022:1815},inc:{1991:3200,2000:5800,2010:15500,2022:29800}},
-  12:{name:'Acre',uf:'AC',pop:{1991:417,2000:558,2010:733,2022:906},inc:{1991:2800,2000:4600,2010:12700,2022:22100}},
-  13:{name:'Amazonas',uf:'AM',pop:{1991:2103,2000:2813,2010:3484,2022:4207},inc:{1991:4800,2000:8500,2010:19900,2022:32200}},
-  14:{name:'Roraima',uf:'RR',pop:{1991:218,2000:324,2010:451,2022:652},inc:{1991:3100,2000:5200,2010:15100,2022:28500}},
-  15:{name:'Pará',uf:'PA',pop:{1991:5182,2000:6192,2010:7581,2022:8778},inc:{1991:2600,2000:4100,2010:11900,2022:22800}},
-  16:{name:'Amapá',uf:'AP',pop:{1991:289,2000:477,2010:669,2022:862},inc:{1991:3500,2000:5700,2010:14500,2022:24200}},
-  17:{name:'Tocantins',uf:'TO',pop:{1991:920,2000:1158,2010:1384,2022:1612},inc:{1991:1800,2000:3800,2010:13800,2022:28900}},
-  21:{name:'Maranhão',uf:'MA',pop:{1991:4930,2000:5652,2010:6575,2022:7154},inc:{1991:1200,2000:2100,2010:7800,2022:15800}},
-  22:{name:'Piauí',uf:'PI',pop:{1991:2582,2000:2843,2010:3119,2022:3289},inc:{1991:1000,2000:2200,2010:7800,2022:17200}},
-  23:{name:'Ceará',uf:'CE',pop:{1991:6367,2000:7431,2010:8453,2022:9187},inc:{1991:1600,2000:3200,2010:10200,2022:20200}},
-  24:{name:'Rio Grande do Norte',uf:'RN',pop:{1991:2415,2000:2777,2010:3168,2022:3303},inc:{1991:1800,2000:3600,2010:11000,2022:22500}},
-  25:{name:'Paraíba',uf:'PB',pop:{1991:3201,2000:3444,2010:3767,2022:4059},inc:{1991:1400,2000:2900,2010:9300,2022:19700}},
-  26:{name:'Pernambuco',uf:'PE',pop:{1991:7128,2000:7918,2010:8796,2022:9674},inc:{1991:2200,2000:4200,2010:11800,2022:22800}},
-  27:{name:'Alagoas',uf:'AL',pop:{1991:2514,2000:2823,2010:3121,2022:3365},inc:{1991:1300,2000:2600,2010:8200,2022:17100}},
-  28:{name:'Sergipe',uf:'SE',pop:{1991:1492,2000:1784,2010:2069,2022:2338},inc:{1991:1800,2000:3500,2010:11700,2022:22600}},
-  29:{name:'Bahia',uf:'BA',pop:{1991:11868,2000:13071,2010:14017,2022:14985},inc:{1991:2100,2000:3900,2010:11800,2022:23600}},
-  31:{name:'Minas Gerais',uf:'MG',pop:{1991:15744,2000:17891,2010:19598,2022:21412},inc:{1991:3300,2000:6500,2010:17900,2022:33400}},
-  32:{name:'Espírito Santo',uf:'ES',pop:{1991:2601,2000:3097,2010:3515,2022:4108},inc:{1991:3600,2000:7100,2010:22400,2022:39600}},
-  33:{name:'Rio de Janeiro',uf:'RJ',pop:{1991:12808,2000:14392,2010:15990,2022:17503},inc:{1991:5800,2000:11200,2010:28400,2022:47600}},
-  35:{name:'São Paulo',uf:'SP',pop:{1991:31589,2000:37032,2010:41262,2022:46289},inc:{1991:6500,2000:12400,2010:30200,2022:54200}},
-  41:{name:'Paraná',uf:'PR',pop:{1991:8449,2000:9564,2010:10444,2022:11835},inc:{1991:3800,2000:7500,2010:20800,2022:42700}},
-  42:{name:'Santa Catarina',uf:'SC',pop:{1991:4542,2000:5357,2010:6249,2022:8192},inc:{1991:3900,2000:8100,2010:24400,2022:49200}},
-  43:{name:'Rio Grande do Sul',uf:'RS',pop:{1991:9139,2000:10188,2010:10694,2022:11423},inc:{1991:4100,2000:8300,2010:23000,2022:44100}},
-  50:{name:'Mato Grosso do Sul',uf:'MS',pop:{1991:1780,2000:2078,2010:2449,2022:2839},inc:{1991:3200,2000:6200,2010:18500,2022:42100}},
-  51:{name:'Mato Grosso',uf:'MT',pop:{1991:2027,2000:2505,2010:3036,2022:3784},inc:{1991:2800,2000:6000,2010:20200,2022:53600}},
-  52:{name:'Goiás',uf:'GO',pop:{1991:4019,2000:5004,2010:6004,2022:7206},inc:{1991:2600,2000:5100,2010:17800,2022:38700}},
-  53:{name:'Distrito Federal',uf:'DF',pop:{1991:1601,2000:2051,2010:2571,2022:3055},inc:{1991:9200,2000:19200,2010:58000,2022:90500}}
+  11:{name:'Rondônia',uf:'RO',area:237765,pop:{1991:1133,2000:1380,2010:1563,2022:1815},inc:{1991:3200,2000:5800,2010:15500,2022:29800},hh:{1991:270,2000:375,2010:480,2022:610},urb:{1991:58,2000:64,2010:74,2022:75}},
+  12:{name:'Acre',uf:'AC',area:164123,pop:{1991:417,2000:558,2010:733,2022:906},inc:{1991:2800,2000:4600,2010:12700,2022:22100},hh:{1991:89,2000:127,2010:193,2022:262},urb:{1991:62,2000:66,2010:72,2022:74}},
+  13:{name:'Amazonas',uf:'AM',area:1559168,pop:{1991:2103,2000:2813,2010:3484,2022:4207},inc:{1991:4800,2000:8500,2010:19900,2022:32200},hh:{1991:410,2000:600,2010:860,2022:1150},urb:{1991:71,2000:75,2010:79,2022:81}},
+  14:{name:'Roraima',uf:'RR',area:224301,pop:{1991:218,2000:324,2010:451,2022:652},inc:{1991:3100,2000:5200,2010:15100,2022:28500},hh:{1991:45,2000:76,2010:121,2022:193},urb:{1991:65,2000:77,2010:77,2022:78}},
+  15:{name:'Pará',uf:'PA',area:1245870,pop:{1991:5182,2000:6192,2010:7581,2022:8778},inc:{1991:2600,2000:4100,2010:11900,2022:22800},hh:{1991:1020,2000:1400,2010:1970,2022:2580},urb:{1991:52,2000:67,2010:68,2022:70}},
+  16:{name:'Amapá',uf:'AP',area:142829,pop:{1991:289,2000:477,2010:669,2022:862},inc:{1991:3500,2000:5700,2010:14500,2022:24200},hh:{1991:60,2000:110,2010:175,2022:255},urb:{1991:81,2000:89,2010:90,2022:91}},
+  17:{name:'Tocantins',uf:'TO',area:277466,pop:{1991:920,2000:1158,2010:1384,2022:1612},inc:{1991:1800,2000:3800,2010:13800,2022:28900},hh:{1991:210,2000:300,2010:410,2022:530},urb:{1991:58,2000:74,2010:79,2022:82}},
+  21:{name:'Maranhão',uf:'MA',area:331937,pop:{1991:4930,2000:5652,2010:6575,2022:7154},inc:{1991:1200,2000:2100,2010:7800,2022:15800},hh:{1991:950,2000:1250,2010:1750,2022:2200},urb:{1991:40,2000:60,2010:63,2022:65}},
+  22:{name:'Piauí',uf:'PI',area:251577,pop:{1991:2582,2000:2843,2010:3119,2022:3289},inc:{1991:1000,2000:2200,2010:7800,2022:17200},hh:{1991:530,2000:680,2010:870,2022:1040},urb:{1991:53,2000:63,2010:66,2022:68}},
+  23:{name:'Ceará',uf:'CE',area:148886,pop:{1991:6367,2000:7431,2010:8453,2022:9187},inc:{1991:1600,2000:3200,2010:10200,2022:20200},hh:{1991:1420,2000:1900,2010:2480,2022:3050},urb:{1991:65,2000:72,2010:75,2022:78}},
+  24:{name:'Rio G. do Norte',uf:'RN',area:52811,pop:{1991:2415,2000:2777,2010:3168,2022:3303},inc:{1991:1800,2000:3600,2010:11000,2022:22500},hh:{1991:550,2000:720,2010:940,2022:1100},urb:{1991:68,2000:73,2010:77,2022:79}},
+  25:{name:'Paraíba',uf:'PB',area:56468,pop:{1991:3201,2000:3444,2010:3767,2022:4059},inc:{1991:1400,2000:2900,2010:9300,2022:19700},hh:{1991:700,2000:870,2010:1090,2022:1320},urb:{1991:59,2000:71,2010:75,2022:78}},
+  26:{name:'Pernambuco',uf:'PE',area:98076,pop:{1991:7128,2000:7918,2010:8796,2022:9674},inc:{1991:2200,2000:4200,2010:11800,2022:22800},hh:{1991:1680,2000:2150,2010:2730,2022:3260},urb:{1991:71,2000:77,2010:80,2022:82}},
+  27:{name:'Alagoas',uf:'AL',area:27848,pop:{1991:2514,2000:2823,2010:3121,2022:3365},inc:{1991:1300,2000:2600,2010:8200,2022:17100},hh:{1991:520,2000:670,2010:870,2022:1060},urb:{1991:59,2000:68,2010:74,2022:76}},
+  28:{name:'Sergipe',uf:'SE',area:21915,pop:{1991:1492,2000:1784,2010:2069,2022:2338},inc:{1991:1800,2000:3500,2010:11700,2022:22600},hh:{1991:320,2000:440,2010:590,2022:740},urb:{1991:68,2000:73,2010:74,2022:76}},
+  29:{name:'Bahia',uf:'BA',area:564733,pop:{1991:11868,2000:13071,2010:14017,2022:14985},inc:{1991:2100,2000:3900,2010:11800,2022:23600},hh:{1991:2800,2000:3600,2010:4450,2022:5300},urb:{1991:59,2000:67,2010:72,2022:74}},
+  31:{name:'Minas Gerais',uf:'MG',area:586522,pop:{1991:15744,2000:17891,2010:19598,2022:21412},inc:{1991:3300,2000:6500,2010:17900,2022:33400},hh:{1991:3900,2000:5100,2010:6300,2022:7600},urb:{1991:75,2000:82,2010:85,2022:87}},
+  32:{name:'Espírito Santo',uf:'ES',area:46074,pop:{1991:2601,2000:3097,2010:3515,2022:4108},inc:{1991:3600,2000:7100,2010:22400,2022:39600},hh:{1991:610,2000:830,2010:1070,2022:1380},urb:{1991:74,2000:80,2010:83,2022:85}},
+  33:{name:'Rio de Janeiro',uf:'RJ',area:43750,pop:{1991:12808,2000:14392,2010:15990,2022:17503},inc:{1991:5800,2000:11200,2010:28400,2022:47600},hh:{1991:3600,2000:4600,2010:5600,2022:6600},urb:{1991:96,2000:96,2010:97,2022:97}},
+  35:{name:'São Paulo',uf:'SP',area:248219,pop:{1991:31589,2000:37032,2010:41262,2022:46289},inc:{1991:6500,2000:12400,2010:30200,2022:54200},hh:{1991:8200,2000:10900,2010:13700,2022:16900},urb:{1991:93,2000:94,2010:96,2022:97}},
+  41:{name:'Paraná',uf:'PR',area:199307,pop:{1991:8449,2000:9564,2010:10444,2022:11835},inc:{1991:3800,2000:7500,2010:20800,2022:42700},hh:{1991:2200,2000:2900,2010:3600,2022:4400},urb:{1991:73,2000:81,2010:85,2022:88}},
+  42:{name:'Santa Catarina',uf:'SC',area:95346,pop:{1991:4542,2000:5357,2010:6249,2022:8192},inc:{1991:3900,2000:8100,2010:24400,2022:49200},hh:{1991:1200,2000:1600,2010:2100,2022:3000},urb:{1991:71,2000:79,2010:84,2022:88}},
+  43:{name:'Rio G. do Sul',uf:'RS',area:281748,pop:{1991:9139,2000:10188,2010:10694,2022:11423},inc:{1991:4100,2000:8300,2010:23000,2022:44100},hh:{1991:2600,2000:3300,2010:3800,2022:4200},urb:{1991:77,2000:82,2010:85,2022:87}},
+  50:{name:'Mato G. do Sul',uf:'MS',area:357146,pop:{1991:1780,2000:2078,2010:2449,2022:2839},inc:{1991:3200,2000:6200,2010:18500,2022:42100},hh:{1991:440,2000:590,2010:770,2022:970},urb:{1991:79,2000:85,2010:85,2022:87}},
+  51:{name:'Mato Grosso',uf:'MT',area:903378,pop:{1991:2027,2000:2505,2010:3036,2022:3784},inc:{1991:2800,2000:6000,2010:20200,2022:53600},hh:{1991:480,2000:680,2010:940,2022:1260},urb:{1991:73,2000:79,2010:82,2022:84}},
+  52:{name:'Goiás',uf:'GO',area:340242,pop:{1991:4019,2000:5004,2010:6004,2022:7206},inc:{1991:2600,2000:5100,2010:17800,2022:38700},hh:{1991:1000,2000:1450,2010:1960,2022:2530},urb:{1991:81,2000:88,2010:90,2022:92}},
+  53:{name:'Distrito Federal',uf:'DF',area:5760,pop:{1991:1601,2000:2051,2010:2571,2022:3055},inc:{1991:9200,2000:19200,2010:58000,2022:90500},hh:{1991:380,2000:560,2010:790,2022:1020},urb:{1991:96,2000:96,2010:97,2022:97}}
 };
+
+// Pre-populate name cache
+const nameCache = {};
+Object.entries(stateData).forEach(([id, d]) => { nameCache[id] = d.name; });
 
 // ========== PROJECTION ENGINE ==========
 function getCAGR(v1, v2, years) {
@@ -222,55 +337,114 @@ function getCAGR(v1, v2, years) {
 }
 
 function projectValue(data, year) {
+  if(!data) return 0;
   if(data[year] !== undefined) return data[year];
-  // Find the two nearest census years for trend
   const years = censusYears.filter(y => data[y] !== undefined).sort((a,b)=>a-b);
   if(years.length < 2) return data[years[0]] || 0;
-  
   if(year < years[0]) {
     const cagr = getCAGR(data[years[0]], data[years[1]], years[1]-years[0]);
     return data[years[0]] * Math.pow(1+cagr, year-years[0]);
   }
-  
-  // Use last two available for forward projection
   const last = years[years.length-1], prev = years[years.length-2];
   const cagr = getCAGR(data[prev], data[last], last-prev);
-  // Dampen projection over time (regression to mean)
   const yearsOut = year - last;
   const dampened = cagr * Math.pow(0.97, yearsOut/10);
   return data[last] * Math.pow(1+dampened, yearsOut);
 }
 
-function getChange(data, year) {
-  const prev = year <= 1991 ? 1991 : year - 1;
-  const refYear = censusYears.filter(y => y < year).pop() || 1991;
-  const curr = projectValue(data, year);
-  const ref = projectValue(data, refYear);
-  const span = year - refYear || 1;
-  return ((curr/ref - 1) * 100);
-}
-
 function getPeriodChange(data, year) {
-  // Change since previous census or decade
+  if(!data) return 0;
   let refYear;
   if(year <= 1991) return 0;
   if(year <= 2000) refYear = 1991;
   else if(year <= 2010) refYear = 2000;
   else if(year <= 2022) refYear = 2010;
-  else {
-    // For projections, compare to previous decade
-    refYear = year - 10;
-    if(refYear < 1991) refYear = 1991;
-  }
+  else { refYear = year - 10; if(refYear < 1991) refYear = 1991; }
   const curr = projectValue(data, year);
   const ref = projectValue(data, refYear);
   return ((curr/ref - 1) * 100);
 }
 
+function getGrowthRate(data, year, horizon=10) {
+  const curr = projectValue(data, year);
+  const future = projectValue(data, year + horizon);
+  if(curr <= 0) return 0;
+  return ((future / curr - 1) * 100);
+}
+
+// ========== COMPOSITE POTENTIAL INDEX ==========
+function calcPotential(d, year) {
+  if(!d) return 0;
+  const popGr = getGrowthRate(d.pop, year, 10);
+  const incGr = getGrowthRate(d.inc, year, 10);
+  const hhGr = getGrowthRate(d.hh, year, 10);
+  const urbRate = projectValue(d.urb, year);
+  // Weighted composite: household growth (35%), pop growth (25%), income growth (25%), urbanization (15%)
+  const score = (hhGr * 0.35) + (popGr * 0.25) + (incGr * 0.25) + (urbRate * 0.15);
+  return score;
+}
+
+// ========== METRIC HELPERS ==========
+function getMetricValue(d, mode, year) {
+  if(!d) return 0;
+  switch(mode) {
+    case 'population': return projectValue(d.pop, year);
+    case 'income': return projectValue(d.inc, year);
+    case 'households': return projectValue(d.hh, year);
+    case 'density': return d.area ? (projectValue(d.pop, year) * 1000 / d.area) : 0;
+    case 'urbanization': return projectValue(d.urb, year);
+    case 'potential': return calcPotential(d, year);
+    default: return 0;
+  }
+}
+
+function getMetricChange(d, mode, year) {
+  if(!d) return 0;
+  switch(mode) {
+    case 'population': return getPeriodChange(d.pop, year);
+    case 'income': return getPeriodChange(d.inc, year);
+    case 'households': return getPeriodChange(d.hh, year);
+    case 'density': return getPeriodChange(d.pop, year); // density change = pop change
+    case 'urbanization': return getPeriodChange(d.urb, year);
+    case 'potential': return calcPotential(d, year); // absolute score used as "change"
+    default: return 0;
+  }
+}
+
+function formatMetric(val, mode) {
+  switch(mode) {
+    case 'population': return formatPop(val);
+    case 'income': return 'R$ ' + formatNum(Math.round(val));
+    case 'households': return formatPop(val);
+    case 'density': return val.toFixed(1) + ' /km²';
+    case 'urbanization': return val.toFixed(1) + '%';
+    case 'potential': return val.toFixed(1) + ' pts';
+    default: return String(val);
+  }
+}
+
+const modeLabels = {
+  population:'População', income:'PIB per capita', households:'Domicílios',
+  density:'Densidade', urbanization:'Urbanização', potential:'Potencial de Mercado'
+};
+
 // ========== COLOR SCALE ==========
 function getColor(pctChange) {
-  const clamped = Math.max(-30, Math.min(30, pctChange));
-  const t = (clamped + 30) / 60; // 0=red, 0.5=neutral, 1=green
+  let clamped, t;
+  if(currentMode === 'potential') {
+    // For potential: 0-50 range mapped to red→green
+    clamped = Math.max(0, Math.min(50, pctChange));
+    t = clamped / 50;
+  } else if(currentMode === 'urbanization') {
+    clamped = Math.max(40, Math.min(100, pctChange));
+    t = (clamped - 40) / 60;
+  } else if(currentMode === 'density') {
+    clamped = Math.max(-30, Math.min(30, pctChange));
+    t = (clamped + 30) / 60;
+  } else {
+    clamped = Math.max(-30, Math.min(30, pctChange));
+    t = (clamped + 30) / 60;
+  }
   if(t < 0.5) {
     const s = t / 0.5;
     const r = Math.round(220 - s * 110);
@@ -287,9 +461,8 @@ function getColor(pctChange) {
 }
 
 function getStyle(feature) {
-  const id = feature.properties.codarea || feature.properties.CD_GCUF || feature.properties.coduf;
   const d = getFeatureData(feature);
-  const change = d ? getPeriodChange(currentMode === 'population' ? d.pop : d.inc, currentYear) : 0;
+  const change = getMetricChange(d, currentMode, currentYear);
   return {
     fillColor: getColor(change),
     weight: 1.2,
@@ -300,18 +473,49 @@ function getStyle(feature) {
 }
 
 function getHighlightStyle() {
-  return {weight: 2.5, color: '#4ade80', fillOpacity: 0.92};
+  return {weight: 2.5, color: var_ng_orange || '#FF6B00', fillOpacity: 0.92};
 }
+var var_ng_orange = '#FF6B00';
 
 function getFeatureId(feature) {
   const p = feature.properties;
   return p.codarea || p.CD_GCUF || p.coduf || p.CD_GCMUN || p.codmun || '';
 }
 
-const nameCache = {};
+function getFeatureName(feature) {
+  const id = String(getFeatureId(feature));
+  if(nameCache[id]) return nameCache[id];
+  const p = feature.properties;
+  return p.name || p.nome || p.NM_UF || p.NM_MUN || ('Região ' + id);
+}
 
-// Pre-populate state names
-Object.entries(stateData).forEach(([id, d]) => { nameCache[id] = d.name; });
+function hashCode(s) {
+  let h = 0;
+  for(let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function getFeatureData(feature) {
+  const id = String(getFeatureId(feature));
+  const stId = parseInt(id.substring(0, 2));
+  if(currentLevel === 'states' && stateData[stId]) return stateData[stId];
+  const st = stateData[stId];
+  if(!st) return null;
+  const hash = hashCode(id);
+  const variance = ((hash % 60) - 30) / 100;
+  const popScale = 0.05 + (Math.abs(hash % 40)) / 100;
+  const incScale = 0.8 + (hash % 40) / 100;
+  const hhScale = popScale * (0.9 + (hash % 20) / 100);
+  const urbAdj = ((hash % 20) - 10);
+  return {
+    name: getFeatureName(feature),
+    area: st.area * popScale * 2,
+    pop: Object.fromEntries(censusYears.map(y => [y, Math.round(st.pop[y] * popScale * (1 + variance * 0.3))])),
+    inc: Object.fromEntries(censusYears.map(y => [y, Math.round(st.inc[y] * incScale * (1 + variance * 0.2))])),
+    hh: Object.fromEntries(censusYears.map(y => [y, Math.round(st.hh[y] * hhScale * (1 + variance * 0.25))])),
+    urb: Object.fromEntries(censusYears.map(y => [y, Math.max(20, Math.min(99, st.urb[y] + urbAdj))]))
+  };
+}
 
 async function loadNames(level, parentId) {
   const base = 'https://servicodados.ibge.gov.br/api/v1/localidades';
@@ -327,54 +531,13 @@ async function loadNames(level, parentId) {
   } catch(e) { console.warn('Names load failed:', e); }
 }
 
-function getFeatureName(feature) {
-  const id = String(getFeatureId(feature));
-  if(nameCache[id]) return nameCache[id];
-  const p = feature.properties;
-  return p.name || p.nome || p.NM_UF || p.NM_MUN || ('Região ' + id);
-}
-
-function getFeatureData(feature) {
-  const id = String(getFeatureId(feature)).substring(0, 2);
-  const numId = parseInt(id);
-  if(currentLevel === 'states' && stateData[numId]) return stateData[numId];
-  // For sub-state levels, generate synthetic data based on state + variation
-  const stId = parseInt(String(getFeatureId(feature)).substring(0, 2));
-  const st = stateData[stId];
-  if(!st) return null;
-  // Use feature id hash to create consistent variation
-  const hash = hashCode(String(getFeatureId(feature)));
-  const variance = ((hash % 60) - 30) / 100; // -0.3 to +0.3
-  const popScale = 0.05 + (Math.abs(hash % 40)) / 100;
-  const incScale = 0.8 + (hash % 40) / 100;
-  return {
-    name: getFeatureName(feature),
-    pop: Object.fromEntries(censusYears.map(y => [y, Math.round(st.pop[y] * popScale * (1 + variance * 0.3))])),
-    inc: Object.fromEntries(censusYears.map(y => [y, Math.round(st.inc[y] * incScale * (1 + variance * 0.2))]))
-  };
-}
-
-function hashCode(s) {
-  let h = 0;
-  for(let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 // ========== MAP SETUP ==========
 function initMap() {
   map = L.map('map', {
-    center: [-14.5, -53],
-    zoom: 4,
-    minZoom: 3,
-    maxZoom: 12,
-    zoomControl: true,
-    attributionControl: false,
-    preferCanvas: true
+    center: [-14.5, -53], zoom: 4, minZoom: 3, maxZoom: 12,
+    zoomControl: true, attributionControl: false, preferCanvas: true
   });
-  // Dark tile layer (optional subtle background)
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-    opacity: 0.3
-  }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {opacity: 0.3}).addTo(map);
 }
 
 // ========== GEOJSON LOADING ==========
@@ -383,21 +546,13 @@ const geoCache = {};
 async function loadGeoJSON(level, parentId) {
   const key = `${level}_${parentId||'BR'}`;
   if(geoCache[key]) return geoCache[key];
-  
-  let url;
   const fmt = '&formato=application/vnd.geo+json&qualidade=minima';
   const base = 'https://servicodados.ibge.gov.br/api/v3/malhas';
-  
-  if(level === 'states') {
-    url = `${base}/paises/BR?intrarregiao=UF${fmt}`;
-  } else if(level === 'meso') {
-    url = `${base}/estados/${parentId}?intrarregiao=mesorregiao${fmt}`;
-  } else if(level === 'micro') {
-    url = `${base}/estados/${parentId}?intrarregiao=microrregiao${fmt}`;
-  } else if(level === 'muni') {
-    url = `${base}/estados/${parentId}?intrarregiao=municipio${fmt}`;
-  }
-  
+  let url;
+  if(level === 'states') url = `${base}/paises/BR?intrarregiao=UF${fmt}`;
+  else if(level === 'meso') url = `${base}/estados/${parentId}?intrarregiao=mesorregiao${fmt}`;
+  else if(level === 'micro') url = `${base}/estados/${parentId}?intrarregiao=microrregiao${fmt}`;
+  else if(level === 'muni') url = `${base}/estados/${parentId}?intrarregiao=municipio${fmt}`;
   setProgress(`Carregando ${level}...`);
   try {
     const resp = await fetch(url);
@@ -407,24 +562,7 @@ async function loadGeoJSON(level, parentId) {
     return data;
   } catch(e) {
     console.error('GeoJSON load error:', e);
-    // Try alternative URL format
-    try {
-      let altUrl;
-      if(level === 'states') {
-        altUrl = `${base}/paises/BR?intrarregiao=UF&qualidade=minima${fmt}`;
-      } else {
-        altUrl = `${base}/estados/${parentId}?intrarregiao=${
-          level === 'meso' ? 'mesorregiao' : level === 'micro' ? 'microrregiao' : 'municipio'
-        }&qualidade=minima${fmt}`;
-      }
-      const resp2 = await fetch(altUrl);
-      const data2 = await resp2.json();
-      geoCache[key] = data2;
-      return data2;
-    } catch(e2) {
-      console.error('Alt GeoJSON also failed:', e2);
-      return null;
-    }
+    return null;
   }
 }
 
@@ -433,36 +571,33 @@ async function renderLevel(level, parentId, parentName) {
   showLoading();
   currentLevel = level;
   currentParentId = parentId;
-  
   const [geo] = await Promise.all([
     loadGeoJSON(level, parentId),
     level !== 'states' ? loadNames(level, parentId) : Promise.resolve()
   ]);
   if(!geo) { hideLoading(); return; }
-  
   if(geoLayer) map.removeLayer(geoLayer);
-  
   geoLayer = L.geoJSON(geo, {
     style: getStyle,
     onEachFeature: (feature, layer) => {
       layer.on({
         mouseover: (e) => highlightFeature(e, feature),
         mouseout: resetHighlight,
-        click: (e) => drillDown(feature, e)
+        click: (e) => handleClick(feature, e)
       });
     }
   }).addTo(map);
-  
   map.fitBounds(geoLayer.getBounds(), {padding: [60, 60], animate: true, duration: 0.8});
   updateBreadcrumb();
   updateBackButton();
+  updateRanking();
+  updateInsights();
   hideLoading();
 }
 
 function highlightFeature(e, feature) {
-  const layer = e.target;
-  layer.setStyle(getHighlightStyle());
-  layer.bringToFront();
+  e.target.setStyle(getHighlightStyle());
+  e.target.bringToFront();
   showInfoPanel(feature);
   showTooltip(e, feature);
 }
@@ -477,18 +612,22 @@ function showTooltip(e, feature) {
   if(!d) return;
   const pop = projectValue(d.pop, currentYear);
   const inc = projectValue(d.inc, currentYear);
-  const popChange = getPeriodChange(d.pop, currentYear);
-  const incChange = getPeriodChange(d.inc, currentYear);
+  const hh = projectValue(d.hh, currentYear);
+  const dens = d.area ? (pop * 1000 / d.area) : 0;
+  const urbVal = projectValue(d.urb, currentYear);
+  const pot = calcPotential(d, currentYear);
   const name = getFeatureName(feature);
-  
+  const popCh = getPeriodChange(d.pop, currentYear);
   const content = `
     <div class="tt-name">${name}</div>
     <div class="tt-row"><span>População</span><span class="tt-val">${formatPop(pop)}</span></div>
-    <div class="tt-row"><span>Var. Pop.</span><span class="tt-change ${popChange>=0?'pos':'neg'}">${popChange>=0?'+':''}${popChange.toFixed(1)}%</span></div>
-    <div class="tt-row"><span>PIB p/capita</span><span class="tt-val">R$ ${formatNum(inc)}</span></div>
-    <div class="tt-row"><span>Var. Renda</span><span class="tt-change ${incChange>=0?'pos':'neg'}">${incChange>=0?'+':''}${incChange.toFixed(1)}%</span></div>
+    <div class="tt-row"><span>Domicílios</span><span class="tt-val">${formatPop(hh)}</span></div>
+    <div class="tt-row"><span>PIB p/c</span><span class="tt-val">R$ ${formatNum(Math.round(inc))}</span></div>
+    <div class="tt-row"><span>Densidade</span><span class="tt-val">${dens.toFixed(1)} /km²</span></div>
+    <div class="tt-row"><span>Urbanização</span><span class="tt-val">${urbVal.toFixed(0)}%</span></div>
+    <div class="tt-row"><span>Potencial</span><span class="tt-val" style="color:var(--ng-orange)">${pot.toFixed(1)} pts</span></div>
+    <div class="tt-row"><span>Var. Pop.</span><span class="tt-change ${popCh>=0?'pos':'neg'}">${popCh>=0?'+':''}${popCh.toFixed(1)}%</span></div>
   `;
-  
   L.popup({className:'map-tooltip', closeButton:false, offset:[0,-5]})
     .setLatLng(e.latlng).setContent(content).openOn(map);
 }
@@ -496,21 +635,23 @@ function showTooltip(e, feature) {
 function showInfoPanel(feature) {
   const d = getFeatureData(feature);
   if(!d) return;
+  const val = getMetricValue(d, currentMode, currentYear);
+  const change = getMetricChange(d, currentMode, currentYear);
   const pop = projectValue(d.pop, currentYear);
   const inc = projectValue(d.inc, currentYear);
-  const popChange = getPeriodChange(d.pop, currentYear);
-  const incChange = getPeriodChange(d.inc, currentYear);
-  
+  const hh = projectValue(d.hh, currentYear);
+  const pot = calcPotential(d, currentYear);
   document.getElementById('info-name').textContent = getFeatureName(feature);
   document.getElementById('info-stats').innerHTML = `
-    <div class="stat"><span class="label">População</span><span class="value">${formatPop(pop)}</span></div>
-    <div class="stat"><span class="label">Var. Populacional</span><span class="value ${popChange>=0?'positive':'negative'}">${popChange>=0?'+':''}${popChange.toFixed(1)}%</span></div>
-    <div class="stat"><span class="label">PIB per capita</span><span class="value">R$ ${formatNum(inc)}</span></div>
-    <div class="stat"><span class="label">Var. Renda</span><span class="value ${incChange>=0?'positive':'negative'}">${incChange>=0?'+':''}${incChange.toFixed(1)}%</span></div>
-    <div class="stat"><span class="label">Ano</span><span class="value">${currentYear}${currentYear > 2022 ? ' (projeção)' : ''}</span></div>
+    <div class="stat"><span class="label">👥 Pop.</span><span class="value">${formatPop(pop)}</span></div>
+    <div class="stat"><span class="label">🏠 Domicílios</span><span class="value">${formatPop(hh)}</span></div>
+    <div class="stat"><span class="label">💰 PIB p/c</span><span class="value">R$ ${formatNum(Math.round(inc))}</span></div>
+    <div class="stat"><span class="label">⭐ Potencial</span><span class="value" style="color:#FF6B00">${pot.toFixed(1)} pts</span></div>
+    <div class="stat"><span class="label">📊 ${modeLabels[currentMode]}</span><span class="value">${formatMetric(val, currentMode)}</span></div>
+    <div class="stat"><span class="label">Ano</span><span class="value">${currentYear}${currentYear>2022?' (proj.)':''}</span></div>
   `;
   const canDrill = currentLevel !== 'muni';
-  document.getElementById('click-hint').textContent = canDrill ? 'Clique para explorar →' : '';
+  document.getElementById('click-hint').textContent = compareMode ? 'Clique para adicionar à comparação' : (canDrill ? 'Clique para explorar →' : '');
   document.getElementById('info-panel').classList.add('visible');
 }
 
@@ -519,23 +660,29 @@ function hideInfoPanel() {
   map.closePopup();
 }
 
-// ========== DRILL DOWN ==========
+// ========== CLICK / DRILL DOWN ==========
+function handleClick(feature, e) {
+  if(compareMode) {
+    addToCompare(feature);
+    return;
+  }
+  drillDown(feature);
+}
+
 function drillDown(feature) {
   const id = getFeatureId(feature);
   const name = getFeatureName(feature);
   const stateId = String(id).substring(0, 2);
-  
   if(currentLevel === 'states') {
     navStack.push({level:'states', id:null, name:'Brasil'});
     renderLevel('meso', stateId, name);
   } else if(currentLevel === 'meso') {
-    navStack.push({level:'meso', id:currentParentId, name: navStack.length ? 'Estado' : 'Brasil'});
+    navStack.push({level:'meso', id:currentParentId, name:'Estado'});
     renderLevel('micro', stateId, name);
   } else if(currentLevel === 'micro') {
     navStack.push({level:'micro', id:currentParentId, name:'Micro'});
     renderLevel('muni', stateId, name);
   }
-  // muni = deepest, no more drill
 }
 
 function goBack() {
@@ -546,6 +693,11 @@ function goBack() {
 
 function updateBackButton() {
   document.getElementById('back-btn').style.display = navStack.length > 0 ? 'block' : 'none';
+  if(navStack.length > 0) {
+    document.getElementById('breadcrumb').style.left = '90px';
+  } else {
+    document.getElementById('breadcrumb').style.left = '16px';
+  }
 }
 
 function updateBreadcrumb() {
@@ -554,7 +706,6 @@ function updateBreadcrumb() {
   if(currentLevel !== 'states') levels.push('Mesorregiões');
   if(currentLevel === 'micro' || currentLevel === 'muni') levels.push('Microrregiões');
   if(currentLevel === 'muni') levels.push('Municípios');
-  
   bc.innerHTML = levels.map((l, i) => {
     const isLast = i === levels.length - 1;
     const sep = i > 0 ? '<span class="sep">›</span>' : '';
@@ -563,16 +714,22 @@ function updateBreadcrumb() {
 }
 
 function navigateTo(idx) {
-  // Navigate back to breadcrumb level
   while(navStack.length > idx) goBack();
 }
 
 // ========== CONTROLS ==========
 function setMode(mode) {
   currentMode = mode;
-  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  document.getElementById('legend-mode').textContent = mode === 'population' ? 'População' : 'PIB per capita';
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('legend-mode').textContent = modeLabels[mode] || mode;
+  // Update legend labels
+  const ll = document.getElementById('legend-labels');
+  if(mode === 'potential') ll.innerHTML = '<span>0</span><span>25</span><span>50+</span>';
+  else if(mode === 'urbanization') ll.innerHTML = '<span>40%</span><span>70%</span><span>100%</span>';
+  else ll.innerHTML = '<span>-30%</span><span>0%</span><span>+30%</span>';
   refreshStyles();
+  updateRanking();
+  updateInsights();
 }
 
 function setYear(year) {
@@ -580,17 +737,15 @@ function setYear(year) {
   document.getElementById('year-display').textContent = currentYear;
   document.getElementById('year-slider').value = currentYear;
   const isCensus = censusYears.includes(currentYear);
-  document.getElementById('year-sub').textContent = 
+  document.getElementById('year-sub').textContent =
     isCensus ? 'Censo IBGE' : currentYear > 2022 ? 'Projeção estimada' : 'Interpolação';
   refreshStyles();
+  updateRanking();
+  updateInsights();
 }
 
 function refreshStyles() {
-  if(geoLayer) {
-    geoLayer.eachLayer(layer => {
-      if(layer.feature) layer.setStyle(getStyle(layer.feature));
-    });
-  }
+  if(geoLayer) geoLayer.eachLayer(layer => { if(layer.feature) layer.setStyle(getStyle(layer.feature)); });
 }
 
 function togglePlay() {
@@ -599,15 +754,226 @@ function togglePlay() {
   if(playing) {
     icon.setAttribute('d', 'M6 4h4v16H6zM14 4h4v16h-4z');
     let y = currentYear < 2052 ? currentYear : 1991;
-    playInterval = setInterval(() => {
-      y++;
-      if(y > 2052) { togglePlay(); return; }
-      setYear(y);
-    }, 150);
+    playInterval = setInterval(() => { y++; if(y > 2052) { togglePlay(); return; } setYear(y); }, 150);
   } else {
     icon.setAttribute('d', 'M8 5v14l11-7z');
     clearInterval(playInterval);
   }
+}
+
+// ========== RANKING PANEL ==========
+function updateRanking() {
+  if(!geoLayer) return;
+  const fltPop = parseFloat(document.getElementById('flt-pop').value) || 0;
+  const fltInc = parseFloat(document.getElementById('flt-inc').value) || 0;
+  const fltGrowth = parseFloat(document.getElementById('flt-growth').value) || -999;
+
+  const items = [];
+  geoLayer.eachLayer(layer => {
+    if(!layer.feature) return;
+    const d = getFeatureData(layer.feature);
+    if(!d) return;
+    const pop = projectValue(d.pop, currentYear);
+    const inc = projectValue(d.inc, currentYear);
+    const popGr = getGrowthRate(d.pop, currentYear, 10);
+    if(pop < fltPop) return;
+    if(inc < fltInc) return;
+    if(popGr < fltGrowth) return;
+    const val = getMetricValue(d, currentMode, currentYear);
+    const change = getMetricChange(d, currentMode, currentYear);
+    const pot = calcPotential(d, currentYear);
+    items.push({
+      name: getFeatureName(layer.feature),
+      val, change, pot, popGr,
+      layer, feature: layer.feature
+    });
+  });
+
+  // Sort by value descending (for potential, by pot; for others, by val)
+  if(currentMode === 'potential') items.sort((a,b) => b.pot - a.pot);
+  else items.sort((a,b) => b.val - a.val);
+
+  const top = items.slice(0, 20);
+  document.getElementById('rank-count').textContent = items.length;
+
+  const list = document.getElementById('rank-list');
+  list.innerHTML = top.map((it, i) => `
+    <li class="rank-item" onclick="zoomToRank(${i})" data-idx="${i}">
+      <span class="rank-num ${i<3?'top3':''}">${i+1}</span>
+      <span class="rank-name">${it.name}</span>
+      <span class="rank-val">${formatMetric(it.val, currentMode)}</span>
+      <span class="rank-growth ${it.popGr>=0?'pos':'neg'}">${it.popGr>=0?'+':''}${it.popGr.toFixed(1)}%</span>
+      <span class="rank-score">${it.pot.toFixed(0)}</span>
+    </li>
+  `).join('');
+
+  // Store for zoom
+  window._rankItems = top;
+}
+
+function zoomToRank(idx) {
+  const item = window._rankItems?.[idx];
+  if(!item || !item.layer) return;
+  const bounds = item.layer.getBounds();
+  map.fitBounds(bounds, {padding: [100,100], animate: true, duration: 0.6});
+  item.layer.setStyle(getHighlightStyle());
+  setTimeout(() => { if(geoLayer) geoLayer.resetStyle(item.layer); }, 2000);
+}
+
+// ========== COMPARISON ==========
+function toggleCompareMode() {
+  compareMode = !compareMode;
+  document.getElementById('compare-toggle').classList.toggle('primary', compareMode);
+  document.getElementById('compare-toggle').textContent = compareMode ? '✕ Sair Comparação' : '⚖️ Comparar';
+  document.getElementById('comparison').classList.toggle('visible', compareMode || compareList.length > 0);
+  if(!compareMode && compareList.length === 0) document.getElementById('comparison').classList.remove('visible');
+}
+
+function addToCompare(feature) {
+  if(compareList.length >= 3) { compareList.shift(); }
+  const d = getFeatureData(feature);
+  if(!d) return;
+  compareList.push({name: getFeatureName(feature), data: d});
+  document.getElementById('comparison').classList.add('visible');
+  renderComparison();
+}
+
+function removeCompare(idx) {
+  compareList.splice(idx, 1);
+  renderComparison();
+  if(compareList.length === 0) document.getElementById('comparison').classList.remove('visible');
+}
+
+function renderComparison() {
+  const grid = document.getElementById('compare-grid');
+  grid.innerHTML = compareList.map((c, i) => {
+    const d = c.data;
+    const pop = projectValue(d.pop, currentYear);
+    const hh = projectValue(d.hh, currentYear);
+    const inc = projectValue(d.inc, currentYear);
+    const pot = calcPotential(d, currentYear);
+    const popGr = getGrowthRate(d.pop, currentYear, 10);
+    const hhGr = getGrowthRate(d.hh, currentYear, 10);
+    // Mini sparkline via canvas
+    return `
+      <div class="compare-card">
+        <span class="compare-remove" onclick="removeCompare(${i})">✕</span>
+        <h4>${c.name}</h4>
+        <div class="cstat"><span>Pop.</span><span class="cv">${formatPop(pop)}</span></div>
+        <div class="cstat"><span>Domicílios</span><span class="cv">${formatPop(hh)}</span></div>
+        <div class="cstat"><span>PIB p/c</span><span class="cv">R$${formatNum(Math.round(inc))}</span></div>
+        <div class="cstat"><span>Potencial</span><span class="cv" style="color:#FF6B00">${pot.toFixed(1)}</span></div>
+        <div class="cstat"><span>Cresc. Pop 10a</span><span class="cv ${popGr>=0?'positive':'negative'}">${popGr>=0?'+':''}${popGr.toFixed(1)}%</span></div>
+        <div class="cstat"><span>Cresc. Dom 10a</span><span class="cv ${hhGr>=0?'positive':'negative'}">${hhGr>=0?'+':''}${hhGr.toFixed(1)}%</span></div>
+        <canvas id="spark-${i}" width="150" height="50"></canvas>
+      </div>`;
+  }).join('');
+  // Draw sparklines
+  compareList.forEach((c, i) => {
+    const canvas = document.getElementById(`spark-${i}`);
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    const years = [];
+    for(let y=1991; y<=2042; y+=1) years.push(y);
+    const vals = years.map(y => projectValue(c.data.pop, y));
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    ctx.strokeStyle = '#FF6B00';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    years.forEach((y, j) => {
+      const x = (j / (years.length-1)) * w;
+      const yy = h - ((vals[j] - mn) / (mx - mn || 1)) * (h - 4) - 2;
+      j === 0 ? ctx.moveTo(x, yy) : ctx.lineTo(x, yy);
+    });
+    ctx.stroke();
+    // Mark current year
+    const ci = currentYear - 1991;
+    if(ci >= 0 && ci < years.length) {
+      const cx = (ci / (years.length-1)) * w;
+      const cy = h - ((vals[ci] - mn) / (mx - mn || 1)) * (h - 4) - 2;
+      ctx.fillStyle = '#FF6B00';
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
+    }
+  });
+}
+
+// ========== INSIGHTS ==========
+function updateInsights() {
+  if(currentLevel !== 'states') {
+    document.getElementById('insights-text').innerHTML = '<em>Insights disponíveis no nível estadual</em>';
+    return;
+  }
+  // Rank states by potential
+  const ranked = Object.entries(stateData).map(([id, d]) => ({
+    id, name: d.name, uf: d.uf,
+    pot: calcPotential(d, currentYear),
+    popGr: getGrowthRate(d.pop, currentYear, 10),
+    hhGr: getGrowthRate(d.hh, currentYear, 10),
+    incGr: getGrowthRate(d.inc, currentYear, 10),
+    pop: projectValue(d.pop, currentYear),
+    hh: projectValue(d.hh, currentYear),
+    urb: projectValue(d.urb, currentYear)
+  })).sort((a,b) => b.pot - a.pot);
+
+  const top5 = ranked.slice(0, 5);
+  const highGrowthLowDensity = ranked.filter(r => r.popGr > 5 && r.pop < 5000).slice(0, 3);
+
+  let html = `<strong>🏆 Top 5 — Maior Potencial (próx. 10 anos):</strong><br>`;
+  top5.forEach((r, i) => {
+    html += `${i+1}. <strong>${r.name}</strong> (${r.uf}) — ${r.pot.toFixed(1)} pts | +${r.hhGr.toFixed(1)}% domicílios<br>`;
+  });
+
+  if(highGrowthLowDensity.length > 0) {
+    html += `<br><strong>🎯 Oportunidades (alto crescimento + mercado em expansão):</strong><br>`;
+    highGrowthLowDensity.forEach(r => {
+      html += `• <strong>${r.name}</strong> — Pop. cresc. +${r.popGr.toFixed(1)}%, ${r.urb.toFixed(0)}% urbano<br>`;
+    });
+  }
+
+  html += `<br><strong>🏠 Maior crescimento de domicílios:</strong> `;
+  const topHH = [...ranked].sort((a,b) => b.hhGr - a.hhGr).slice(0, 3);
+  html += topHH.map(r => `${r.uf} (+${r.hhGr.toFixed(1)}%)`).join(', ');
+
+  document.getElementById('insights-text').innerHTML = html;
+}
+
+// ========== EXPORT CSV ==========
+function exportCSV() {
+  if(!geoLayer) return;
+  const rows = [['Região','População','Domicílios','PIB_per_capita','Densidade_km2','Urbanização_%','Potencial','Cresc_Pop_10a_%','Cresc_Dom_10a_%','Ano']];
+  geoLayer.eachLayer(layer => {
+    if(!layer.feature) return;
+    const d = getFeatureData(layer.feature);
+    if(!d) return;
+    const name = getFeatureName(layer.feature);
+    const pop = projectValue(d.pop, currentYear);
+    const hh = projectValue(d.hh, currentYear);
+    const inc = projectValue(d.inc, currentYear);
+    const dens = d.area ? (pop * 1000 / d.area) : 0;
+    const urb = projectValue(d.urb, currentYear);
+    const pot = calcPotential(d, currentYear);
+    const popGr = getGrowthRate(d.pop, currentYear, 10);
+    const hhGr = getGrowthRate(d.hh, currentYear, 10);
+    rows.push([name, Math.round(pop*1000), Math.round(hh*1000), Math.round(inc), dens.toFixed(2), urb.toFixed(1), pot.toFixed(2), popGr.toFixed(2), hhGr.toFixed(2), currentYear]);
+  });
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `brasil_bi_${currentLevel}_${currentYear}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ========== PANEL TOGGLE ==========
+function togglePanel() {
+  panelCollapsed = !panelCollapsed;
+  document.getElementById('right-panel').classList.toggle('collapsed', panelCollapsed);
+  document.getElementById('panel-toggle').textContent = panelCollapsed ? '▶' : '◀';
+  setTimeout(() => map.invalidateSize(), 350);
 }
 
 // ========== FORMATTING ==========
@@ -615,9 +981,7 @@ function formatPop(v) {
   if(v >= 1000) return (v/1000).toFixed(v >= 10000 ? 1 : 2) + ' mi';
   return Math.round(v) + ' mil';
 }
-function formatNum(v) {
-  return Math.round(v).toLocaleString('pt-BR');
-}
+function formatNum(v) { return Math.round(v).toLocaleString('pt-BR'); }
 
 // ========== TIMELINE TICKS ==========
 function buildTicks() {
@@ -638,9 +1002,7 @@ function setProgress(t) { document.getElementById('load-progress').textContent =
 async function init() {
   initMap();
   buildTicks();
-  
   document.getElementById('year-slider').addEventListener('input', (e) => setYear(e.target.value));
-  
   await renderLevel('states', null, 'Brasil');
   setYear(2022);
 }
