@@ -385,7 +385,7 @@ async function loadGeoJSON(level, parentId) {
   if(geoCache[key]) return geoCache[key];
   
   let url;
-  const fmt = '?formato=application/vnd.geo+json';
+  const fmt = '&formato=application/vnd.geo+json&qualidade=minima';
   const base = 'https://servicodados.ibge.gov.br/api/v3/malhas';
   
   if(level === 'states') {
@@ -395,7 +395,6 @@ async function loadGeoJSON(level, parentId) {
   } else if(level === 'micro') {
     url = `${base}/estados/${parentId}?intrarregiao=microrregiao${fmt}`;
   } else if(level === 'muni') {
-    // Load municipalities for a state
     url = `${base}/estados/${parentId}?intrarregiao=municipio${fmt}`;
   }
   
