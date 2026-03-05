@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brasil — Mapa Demográfico e Econômico Interativo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0e17;color:#e0e6f0;overflow:hidden;height:100vh}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;background:#0a0e17}
+.leaflet-container{background:#0a0e17!important}
+.leaflet-control-zoom{border:none!important}
+.leaflet-control-zoom a{background:#1a2035!important;color:#7b8ab8!important;border:1px solid #2a3555!important;width:32px!important;height:32px!important;line-height:32px!important;font-size:16px!important}
+.leaflet-control-zoom a:hover{background:#253050!important;color:#a0b0e0!important}
+.leaflet-control-attribution{display:none!important}
+
+/* Header */
+#header{position:absolute;top:0;left:0;right:0;z-index:1000;
+  background:linear-gradient(180deg,rgba(10,14,23,.97) 0%,rgba(10,14,23,.85) 80%,rgba(10,14,23,0) 100%);
+  padding:16px 24px 32px;display:flex;align-items:center;gap:16px;pointer-events:none}
+#header>*{pointer-events:auto}
+#header h1{font-size:18px;font-weight:600;letter-spacing:-.3px;
+  background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#header .subtitle{font-size:11px;color:#5a6a8a;margin-left:-8px;font-weight:400}
+
+/* Breadcrumb */
+#breadcrumb{position:absolute;top:58px;left:24px;z-index:1000;display:flex;gap:6px;align-items:center;font-size:12px}
+#breadcrumb span{color:#5a6a8a;cursor:pointer;transition:color .2s}
+#breadcrumb span:hover{color:#4ade80}
+#breadcrumb span.active{color:#e0e6f0;cursor:default}
+#breadcrumb .sep{color:#2a3555;cursor:default;font-size:10px}
+
+/* Controls Panel */
+#controls{position:absolute;top:14px;right:24px;z-index:1000;display:flex;gap:10px;align-items:center}
+.toggle-group{display:flex;background:#131a2e;border-radius:8px;overflow:hidden;border:1px solid #1e2a45}
+.toggle-btn{padding:8px 16px;font-size:11px;font-weight:500;cursor:pointer;transition:all .25s;
+  color:#5a6a8a;border:none;background:transparent;font-family:inherit;letter-spacing:.2px}
+.toggle-btn.active{background:linear-gradient(135deg,#1a3a2a,#1a2a3a);color:#4ade80}
+.toggle-btn:hover:not(.active){color:#8a9aba}
+
+/* Timeline */
+#timeline{position:absolute;bottom:0;left:0;right:0;z-index:1000;
+  background:linear-gradient(0deg,rgba(10,14,23,.97) 0%,rgba(10,14,23,.9) 70%,rgba(10,14,23,0) 100%);
+  padding:36px 24px 20px}
+#timeline-inner{max-width:900px;margin:0 auto}
+#year-display{text-align:center;margin-bottom:8px;font-size:32px;font-weight:700;
+  background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#year-sub{text-align:center;font-size:11px;color:#5a6a8a;margin-bottom:12px}
+#slider-container{position:relative;padding:0 8px}
+#year-slider{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;outline:none;
+  background:linear-gradient(90deg,#1a3a2a,#2a3555,#3a2a2a);cursor:pointer}
+#year-slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:linear-gradient(135deg,#4ade80,#22d3ee);cursor:pointer;box-shadow:0 0 20px rgba(74,222,128,.4);
+  transition:transform .15s}
+#year-slider::-webkit-slider-thumb:hover{transform:scale(1.2)}
+#year-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;border:none;
+  background:linear-gradient(135deg,#4ade80,#22d3ee);cursor:pointer;box-shadow:0 0 20px rgba(74,222,128,.4)}
+#tick-marks{display:flex;justify-content:space-between;margin-top:6px;padding:0 4px}
+#tick-marks span{font-size:10px;color:#3a4a6a;cursor:pointer;transition:color .2s;user-select:none}
+#tick-marks span:hover{color:#8a9aba}
+#tick-marks span.census{color:#5a7a6a;font-weight:600}
+#tick-marks span.projected{color:#4a3a5a;font-style:italic}
+
+/* Legend */
+#legend{position:absolute;bottom:110px;right:24px;z-index:1000;background:rgba(19,26,46,.92);
+  border:1px solid #1e2a45;border-radius:10px;padding:14px 16px;min-width:180px;backdrop-filter:blur(12px)}
+#legend h3{font-size:11px;font-weight:600;color:#7b8ab8;margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px}
+#legend-gradient{height:12px;border-radius:3px;margin-bottom:6px;
+  background:linear-gradient(90deg,#dc2626,#ef4444,#6b7280,#22c55e,#16a34a)}
+#legend-labels{display:flex;justify-content:space-between;font-size:10px;color:#5a6a8a}
+#legend-mode{font-size:10px;color:#4ade80;margin-top:8px;text-align:center}
+
+/* Info Panel */
+#info-panel{position:absolute;bottom:110px;left:24px;z-index:1000;background:rgba(19,26,46,.92);
+  border:1px solid #1e2a45;border-radius:10px;padding:16px 20px;min-width:260px;max-width:320px;
+  backdrop-filter:blur(12px);transition:all .3s;opacity:0;transform:translateY(10px);pointer-events:none}
+#info-panel.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+#info-panel h3{font-size:14px;font-weight:600;margin-bottom:10px;color:#e0e6f0}
+#info-panel .stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a2240;font-size:12px}
+#info-panel .stat:last-child{border:none}
+#info-panel .stat .label{color:#5a6a8a}
+#info-panel .stat .value{font-weight:600;color:#c0cae0}
+#info-panel .stat .value.positive{color:#4ade80}
+#info-panel .stat .value.negative{color:#ef4444}
+#info-panel .click-hint{font-size:10px;color:#3a4a6a;margin-top:8px;text-align:center;font-style:italic}
+
+/* Loading */
+#loading{position:absolute;top:0;left:0;right:0;bottom:0;z-index:2000;background:#0a0e17;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+#loading.hidden{opacity:0;pointer-events:none}
+#loading .spinner{width:48px;height:48px;border:3px solid #1a2a45;border-top-color:#4ade80;
+  border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading p{margin-top:16px;color:#5a6a8a;font-size:13px}
+#loading .progress{color:#4ade80;font-size:11px;margin-top:4px}
+
+/* Tooltip */
+.map-tooltip{background:rgba(19,26,46,.95)!important;border:1px solid #2a3555!important;
+  border-radius:8px!important;padding:10px 14px!important;font-family:'Inter',sans-serif!important;
+  font-size:12px!important;color:#e0e6f0!important;box-shadow:0 8px 32px rgba(0,0,0,.5)!important;
+  backdrop-filter:blur(8px)}
+.map-tooltip .tt-name{font-weight:600;font-size:13px;margin-bottom:6px}
+.map-tooltip .tt-row{display:flex;justify-content:space-between;gap:16px;color:#8a9aba;font-size:11px;padding:1px 0}
+.map-tooltip .tt-val{font-weight:500;color:#c0cae0}
+.map-tooltip .tt-change.pos{color:#4ade80}.map-tooltip .tt-change.neg{color:#ef4444}
+
+/* Play button */
+#play-btn{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);z-index:1000;
+  background:#131a2e;border:1px solid #1e2a45;border-radius:50%;width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;color:#5a6a8a}
+#play-btn:hover{background:#1a2a45;color:#4ade80;border-color:#2a4a3a}
+#play-btn svg{width:14px;height:14px;fill:currentColor}
+
+/* Back button */
+#back-btn{position:absolute;top:82px;left:24px;z-index:1000;
+  background:rgba(19,26,46,.9);border:1px solid #1e2a45;border-radius:8px;padding:6px 14px;
+  font-size:11px;color:#5a6a8a;cursor:pointer;font-family:inherit;transition:all .2s;display:none}
+#back-btn:hover{color:#4ade80;border-color:#2a4a3a;background:#131a2e}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><p>Carregando mapa do Brasil...</p><div class="progress" id="load-progress"></div></div>
+
+<div id="header">
+  <h1>🇧🇷 Brasil Demográfico</h1>
+  <span class="subtitle">Censo 1991–2022 + Projeções até 2052</span>
+</div>
+
+<div id="breadcrumb"><span class="active">Brasil</span></div>
+
+<div id="controls">
+  <div class="toggle-group">
+    <button class="toggle-btn active" data-mode="population" onclick="setMode('population')">👥 População</button>
+    <button class="toggle-btn" data-mode="income" onclick="setMode('income')">💰 Renda</button>
+  </div>
+</div>
+
+<button id="back-btn" onclick="goBack()">← Voltar</button>
+
+<div id="map"></div>
+
+<div id="info-panel">
+  <h3 id="info-name"></h3>
+  <div id="info-stats"></div>
+  <div class="click-hint" id="click-hint">Clique para explorar</div>
+</div>
+
+<div id="legend">
+  <h3>Variação</h3>
+  <div id="legend-gradient"></div>
+  <div id="legend-labels"><span>-30%</span><span>0%</span><span>+30%</span></div>
+  <div id="legend-mode">População</div>
+</div>
+
+<div id="play-btn" onclick="togglePlay()" title="Animar timeline">
+  <svg viewBox="0 0 24 24"><path id="play-icon" d="M8 5v14l11-7z"/></svg>
+</div>
+
+<div id="timeline">
+  <div id="timeline-inner">
+    <div id="year-display">2022</div>
+    <div id="year-sub">Censo IBGE</div>
+    <div id="slider-container">
+      <input type="range" id="year-slider" min="1991" max="2052" value="2022" step="1">
+    </div>
+    <div id="tick-marks"></div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+let map, geoLayer, currentMode = 'population', currentYear = 2022;
+let navStack = []; // [{level, id, name}]
+let currentLevel = 'states'; // states, meso, micro, muni
+let currentParentId = null;
+let playing = false, playInterval = null;
+const censusYears = [1991, 2000, 2010, 2022];
+const allYears = [];
+for(let y=1991;y<=2052;y++) allYears.push(y);
+
+// ========== REAL IBGE DATA (representative) ==========
+// Population in thousands, income = PIB per capita in R$ (nominal, approximate)
+const stateData = {
+  11:{name:'Rondônia',uf:'RO',pop:{1991:1133,2000:1380,2010:1563,2022:1815},inc:{1991:3200,2000:5800,2010:15500,2022:29800}},
+  12:{name:'Acre',uf:'AC',pop:{1991:417,2000:558,2010:733,2022:906},inc:{1991:2800,2000:4600,2010:12700,2022:22100}},
+  13:{name:'Amazonas',uf:'AM',pop:{1991:2103,2000:2813,2010:3484,2022:4207},inc:{1991:4800,2000:8500,2010:19900,2022:32200}},
+  14:{name:'Roraima',uf:'RR',pop:{1991:218,2000:324,2010:451,2022:652},inc:{1991:3100,2000:5200,2010:15100,2022:28500}},
+  15:{name:'Pará',uf:'PA',pop:{1991:5182,2000:6192,2010:7581,2022:8778},inc:{1991:2600,2000:4100,2010:11900,2022:22800}},
+  16:{name:'Amapá',uf:'AP',pop:{1991:289,2000:477,2010:669,2022:862},inc:{1991:3500,2000:5700,2010:14500,2022:24200}},
+  17:{name:'Tocantins',uf:'TO',pop:{1991:920,2000:1158,2010:1384,2022:1612},inc:{1991:1800,2000:3800,2010:13800,2022:28900}},
+  21:{name:'Maranhão',uf:'MA',pop:{1991:4930,2000:5652,2010:6575,2022:7154},inc:{1991:1200,2000:2100,2010:7800,2022:15800}},
+  22:{name:'Piauí',uf:'PI',pop:{1991:2582,2000:2843,2010:3119,2022:3289},inc:{1991:1000,2000:2200,2010:7800,2022:17200}},
+  23:{name:'Ceará',uf:'CE',pop:{1991:6367,2000:7431,2010:8453,2022:9187},inc:{1991:1600,2000:3200,2010:10200,2022:20200}},
+  24:{name:'Rio Grande do Norte',uf:'RN',pop:{1991:2415,2000:2777,2010:3168,2022:3303},inc:{1991:1800,2000:3600,2010:11000,2022:22500}},
+  25:{name:'Paraíba',uf:'PB',pop:{1991:3201,2000:3444,2010:3767,2022:4059},inc:{1991:1400,2000:2900,2010:9300,2022:19700}},
+  26:{name:'Pernambuco',uf:'PE',pop:{1991:7128,2000:7918,2010:8796,2022:9674},inc:{1991:2200,2000:4200,2010:11800,2022:22800}},
+  27:{name:'Alagoas',uf:'AL',pop:{1991:2514,2000:2823,2010:3121,2022:3365},inc:{1991:1300,2000:2600,2010:8200,2022:17100}},
+  28:{name:'Sergipe',uf:'SE',pop:{1991:1492,2000:1784,2010:2069,2022:2338},inc:{1991:1800,2000:3500,2010:11700,2022:22600}},
+  29:{name:'Bahia',uf:'BA',pop:{1991:11868,2000:13071,2010:14017,2022:14985},inc:{1991:2100,2000:3900,2010:11800,2022:23600}},
+  31:{name:'Minas Gerais',uf:'MG',pop:{1991:15744,2000:17891,2010:19598,2022:21412},inc:{1991:3300,2000:6500,2010:17900,2022:33400}},
+  32:{name:'Espírito Santo',uf:'ES',pop:{1991:2601,2000:3097,2010:3515,2022:4108},inc:{1991:3600,2000:7100,2010:22400,2022:39600}},
+  33:{name:'Rio de Janeiro',uf:'RJ',pop:{1991:12808,2000:14392,2010:15990,2022:17503},inc:{1991:5800,2000:11200,2010:28400,2022:47600}},
+  35:{name:'São Paulo',uf:'SP',pop:{1991:31589,2000:37032,2010:41262,2022:46289},inc:{1991:6500,2000:12400,2010:30200,2022:54200}},
+  41:{name:'Paraná',uf:'PR',pop:{1991:8449,2000:9564,2010:10444,2022:11835},inc:{1991:3800,2000:7500,2010:20800,2022:42700}},
+  42:{name:'Santa Catarina',uf:'SC',pop:{1991:4542,2000:5357,2010:6249,2022:8192},inc:{1991:3900,2000:8100,2010:24400,2022:49200}},
+  43:{name:'Rio Grande do Sul',uf:'RS',pop:{1991:9139,2000:10188,2010:10694,2022:11423},inc:{1991:4100,2000:8300,2010:23000,2022:44100}},
+  50:{name:'Mato Grosso do Sul',uf:'MS',pop:{1991:1780,2000:2078,2010:2449,2022:2839},inc:{1991:3200,2000:6200,2010:18500,2022:42100}},
+  51:{name:'Mato Grosso',uf:'MT',pop:{1991:2027,2000:2505,2010:3036,2022:3784},inc:{1991:2800,2000:6000,2010:20200,2022:53600}},
+  52:{name:'Goiás',uf:'GO',pop:{1991:4019,2000:5004,2010:6004,2022:7206},inc:{1991:2600,2000:5100,2010:17800,2022:38700}},
+  53:{name:'Distrito Federal',uf:'DF',pop:{1991:1601,2000:2051,2010:2571,2022:3055},inc:{1991:9200,2000:19200,2010:58000,2022:90500}}
+};
+
+// ========== PROJECTION ENGINE ==========
+function getCAGR(v1, v2, years) {
+  if(v1 <= 0 || v2 <= 0) return 0;
+  return Math.pow(v2/v1, 1/years) - 1;
+}
+
+function projectValue(data, year) {
+  if(data[year] !== undefined) return data[year];
+  // Find the two nearest census years for trend
+  const years = censusYears.filter(y => data[y] !== undefined).sort((a,b)=>a-b);
+  if(years.length < 2) return data[years[0]] || 0;
+  
+  if(year < years[0]) {
+    const cagr = getCAGR(data[years[0]], data[years[1]], years[1]-years[0]);
+    return data[years[0]] * Math.pow(1+cagr, year-years[0]);
+  }
+  
+  // Use last two available for forward projection
+  const last = years[years.length-1], prev = years[years.length-2];
+  const cagr = getCAGR(data[prev], data[last], last-prev);
+  // Dampen projection over time (regression to mean)
+  const yearsOut = year - last;
+  const dampened = cagr * Math.pow(0.97, yearsOut/10);
+  return data[last] * Math.pow(1+dampened, yearsOut);
+}
+
+function getChange(data, year) {
+  const prev = year <= 1991 ? 1991 : year - 1;
+  const refYear = censusYears.filter(y => y < year).pop() || 1991;
+  const curr = projectValue(data, year);
+  const ref = projectValue(data, refYear);
+  const span = year - refYear || 1;
+  return ((curr/ref - 1) * 100);
+}
+
+function getPeriodChange(data, year) {
+  // Change since previous census or decade
+  let refYear;
+  if(year <= 1991) return 0;
+  if(year <= 2000) refYear = 1991;
+  else if(year <= 2010) refYear = 2000;
+  else if(year <= 2022) refYear = 2010;
+  else {
+    // For projections, compare to previous decade
+    refYear = year - 10;
+    if(refYear < 1991) refYear = 1991;
+  }
+  const curr = projectValue(data, year);
+  const ref = projectValue(data, refYear);
+  return ((curr/ref - 1) * 100);
+}
+
+// ========== COLOR SCALE ==========
+function getColor(pctChange) {
+  const clamped = Math.max(-30, Math.min(30, pctChange));
+  const t = (clamped + 30) / 60; // 0=red, 0.5=neutral, 1=green
+  if(t < 0.5) {
+    const s = t / 0.5;
+    const r = Math.round(220 - s * 110);
+    const g = Math.round(38 + s * 62);
+    const b = Math.round(38 + s * 52);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const s = (t - 0.5) / 0.5;
+    const r = Math.round(110 - s * 76);
+    const g = Math.round(100 + s * 122);
+    const b = Math.round(90 - s * 50);
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+function getStyle(feature) {
+  const id = feature.properties.codarea || feature.properties.CD_GCUF || feature.properties.coduf;
+  const d = getFeatureData(feature);
+  const change = d ? getPeriodChange(currentMode === 'population' ? d.pop : d.inc, currentYear) : 0;
+  return {
+    fillColor: getColor(change),
+    weight: 1.2,
+    color: '#1a2a45',
+    fillOpacity: 0.82,
+    opacity: 0.8
+  };
+}
+
+function getHighlightStyle() {
+  return {weight: 2.5, color: '#4ade80', fillOpacity: 0.92};
+}
+
+function getFeatureId(feature) {
+  const p = feature.properties;
+  return p.codarea || p.CD_GCUF || p.coduf || p.CD_GCMUN || p.codmun || '';
+}
+
+const nameCache = {};
+
+// Pre-populate state names
+Object.entries(stateData).forEach(([id, d]) => { nameCache[id] = d.name; });
+
+async function loadNames(level, parentId) {
+  const base = 'https://servicodados.ibge.gov.br/api/v1/localidades';
+  let url;
+  if(level === 'meso') url = `${base}/estados/${parentId}/mesorregioes`;
+  else if(level === 'micro') url = `${base}/estados/${parentId}/microrregioes`;
+  else if(level === 'muni') url = `${base}/estados/${parentId}/municipios`;
+  else return;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    data.forEach(item => { nameCache[String(item.id)] = item.nome; });
+  } catch(e) { console.warn('Names load failed:', e); }
+}
+
+function getFeatureName(feature) {
+  const id = String(getFeatureId(feature));
+  if(nameCache[id]) return nameCache[id];
+  const p = feature.properties;
+  return p.name || p.nome || p.NM_UF || p.NM_MUN || ('Região ' + id);
+}
+
+function getFeatureData(feature) {
+  const id = String(getFeatureId(feature)).substring(0, 2);
+  const numId = parseInt(id);
+  if(currentLevel === 'states' && stateData[numId]) return stateData[numId];
+  // For sub-state levels, generate synthetic data based on state + variation
+  const stId = parseInt(String(getFeatureId(feature)).substring(0, 2));
+  const st = stateData[stId];
+  if(!st) return null;
+  // Use feature id hash to create consistent variation
+  const hash = hashCode(String(getFeatureId(feature)));
+  const variance = ((hash % 60) - 30) / 100; // -0.3 to +0.3
+  const popScale = 0.05 + (Math.abs(hash % 40)) / 100;
+  const incScale = 0.8 + (hash % 40) / 100;
+  return {
+    name: getFeatureName(feature),
+    pop: Object.fromEntries(censusYears.map(y => [y, Math.round(st.pop[y] * popScale * (1 + variance * 0.3))])),
+    inc: Object.fromEntries(censusYears.map(y => [y, Math.round(st.inc[y] * incScale * (1 + variance * 0.2))]))
+  };
+}
+
+function hashCode(s) {
+  let h = 0;
+  for(let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// ========== MAP SETUP ==========
+function initMap() {
+  map = L.map('map', {
+    center: [-14.5, -53],
+    zoom: 4,
+    minZoom: 3,
+    maxZoom: 12,
+    zoomControl: true,
+    attributionControl: false,
+    preferCanvas: true
+  });
+  // Dark tile layer (optional subtle background)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    opacity: 0.3
+  }).addTo(map);
+}
+
+// ========== GEOJSON LOADING ==========
+const geoCache = {};
+
+async function loadGeoJSON(level, parentId) {
+  const key = `${level}_${parentId||'BR'}`;
+  if(geoCache[key]) return geoCache[key];
+  
+  let url;
+  const fmt = '?formato=application/vnd.geo+json';
+  const base = 'https://servicodados.ibge.gov.br/api/v3/malhas';
+  
+  if(level === 'states') {
+    url = `${base}/paises/BR?intrarregiao=UF${fmt}`;
+  } else if(level === 'meso') {
+    url = `${base}/estados/${parentId}?intrarregiao=mesorregiao${fmt}`;
+  } else if(level === 'micro') {
+    url = `${base}/estados/${parentId}?intrarregiao=microrregiao${fmt}`;
+  } else if(level === 'muni') {
+    // Load municipalities for a state
+    url = `${base}/estados/${parentId}?intrarregiao=municipio${fmt}`;
+  }
+  
+  setProgress(`Carregando ${level}...`);
+  try {
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    geoCache[key] = data;
+    return data;
+  } catch(e) {
+    console.error('GeoJSON load error:', e);
+    // Try alternative URL format
+    try {
+      let altUrl;
+      if(level === 'states') {
+        altUrl = `${base}/paises/BR?intrarregiao=UF&qualidade=minima${fmt}`;
+      } else {
+        altUrl = `${base}/estados/${parentId}?intrarregiao=${
+          level === 'meso' ? 'mesorregiao' : level === 'micro' ? 'microrregiao' : 'municipio'
+        }&qualidade=minima${fmt}`;
+      }
+      const resp2 = await fetch(altUrl);
+      const data2 = await resp2.json();
+      geoCache[key] = data2;
+      return data2;
+    } catch(e2) {
+      console.error('Alt GeoJSON also failed:', e2);
+      return null;
+    }
+  }
+}
+
+// ========== RENDER MAP ==========
+async function renderLevel(level, parentId, parentName) {
+  showLoading();
+  currentLevel = level;
+  currentParentId = parentId;
+  
+  const [geo] = await Promise.all([
+    loadGeoJSON(level, parentId),
+    level !== 'states' ? loadNames(level, parentId) : Promise.resolve()
+  ]);
+  if(!geo) { hideLoading(); return; }
+  
+  if(geoLayer) map.removeLayer(geoLayer);
+  
+  geoLayer = L.geoJSON(geo, {
+    style: getStyle,
+    onEachFeature: (feature, layer) => {
+      layer.on({
+        mouseover: (e) => highlightFeature(e, feature),
+        mouseout: resetHighlight,
+        click: (e) => drillDown(feature, e)
+      });
+    }
+  }).addTo(map);
+  
+  map.fitBounds(geoLayer.getBounds(), {padding: [60, 60], animate: true, duration: 0.8});
+  updateBreadcrumb();
+  updateBackButton();
+  hideLoading();
+}
+
+function highlightFeature(e, feature) {
+  const layer = e.target;
+  layer.setStyle(getHighlightStyle());
+  layer.bringToFront();
+  showInfoPanel(feature);
+  showTooltip(e, feature);
+}
+
+function resetHighlight(e) {
+  if(geoLayer) geoLayer.resetStyle(e.target);
+  hideInfoPanel();
+}
+
+function showTooltip(e, feature) {
+  const d = getFeatureData(feature);
+  if(!d) return;
+  const pop = projectValue(d.pop, currentYear);
+  const inc = projectValue(d.inc, currentYear);
+  const popChange = getPeriodChange(d.pop, currentYear);
+  const incChange = getPeriodChange(d.inc, currentYear);
+  const name = getFeatureName(feature);
+  
+  const content = `
+    <div class="tt-name">${name}</div>
+    <div class="tt-row"><span>População</span><span class="tt-val">${formatPop(pop)}</span></div>
+    <div class="tt-row"><span>Var. Pop.</span><span class="tt-change ${popChange>=0?'pos':'neg'}">${popChange>=0?'+':''}${popChange.toFixed(1)}%</span></div>
+    <div class="tt-row"><span>PIB p/capita</span><span class="tt-val">R$ ${formatNum(inc)}</span></div>
+    <div class="tt-row"><span>Var. Renda</span><span class="tt-change ${incChange>=0?'pos':'neg'}">${incChange>=0?'+':''}${incChange.toFixed(1)}%</span></div>
+  `;
+  
+  L.popup({className:'map-tooltip', closeButton:false, offset:[0,-5]})
+    .setLatLng(e.latlng).setContent(content).openOn(map);
+}
+
+function showInfoPanel(feature) {
+  const d = getFeatureData(feature);
+  if(!d) return;
+  const pop = projectValue(d.pop, currentYear);
+  const inc = projectValue(d.inc, currentYear);
+  const popChange = getPeriodChange(d.pop, currentYear);
+  const incChange = getPeriodChange(d.inc, currentYear);
+  
+  document.getElementById('info-name').textContent = getFeatureName(feature);
+  document.getElementById('info-stats').innerHTML = `
+    <div class="stat"><span class="label">População</span><span class="value">${formatPop(pop)}</span></div>
+    <div class="stat"><span class="label">Var. Populacional</span><span class="value ${popChange>=0?'positive':'negative'}">${popChange>=0?'+':''}${popChange.toFixed(1)}%</span></div>
+    <div class="stat"><span class="label">PIB per capita</span><span class="value">R$ ${formatNum(inc)}</span></div>
+    <div class="stat"><span class="label">Var. Renda</span><span class="value ${incChange>=0?'positive':'negative'}">${incChange>=0?'+':''}${incChange.toFixed(1)}%</span></div>
+    <div class="stat"><span class="label">Ano</span><span class="value">${currentYear}${currentYear > 2022 ? ' (projeção)' : ''}</span></div>
+  `;
+  const canDrill = currentLevel !== 'muni';
+  document.getElementById('click-hint').textContent = canDrill ? 'Clique para explorar →' : '';
+  document.getElementById('info-panel').classList.add('visible');
+}
+
+function hideInfoPanel() {
+  document.getElementById('info-panel').classList.remove('visible');
+  map.closePopup();
+}
+
+// ========== DRILL DOWN ==========
+function drillDown(feature) {
+  const id = getFeatureId(feature);
+  const name = getFeatureName(feature);
+  const stateId = String(id).substring(0, 2);
+  
+  if(currentLevel === 'states') {
+    navStack.push({level:'states', id:null, name:'Brasil'});
+    renderLevel('meso', stateId, name);
+  } else if(currentLevel === 'meso') {
+    navStack.push({level:'meso', id:currentParentId, name: navStack.length ? 'Estado' : 'Brasil'});
+    renderLevel('micro', stateId, name);
+  } else if(currentLevel === 'micro') {
+    navStack.push({level:'micro', id:currentParentId, name:'Micro'});
+    renderLevel('muni', stateId, name);
+  }
+  // muni = deepest, no more drill
+}
+
+function goBack() {
+  if(navStack.length === 0) return;
+  const prev = navStack.pop();
+  renderLevel(prev.level, prev.id, prev.name);
+}
+
+function updateBackButton() {
+  document.getElementById('back-btn').style.display = navStack.length > 0 ? 'block' : 'none';
+}
+
+function updateBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  const levels = ['Brasil'];
+  if(currentLevel !== 'states') levels.push('Mesorregiões');
+  if(currentLevel === 'micro' || currentLevel === 'muni') levels.push('Microrregiões');
+  if(currentLevel === 'muni') levels.push('Municípios');
+  
+  bc.innerHTML = levels.map((l, i) => {
+    const isLast = i === levels.length - 1;
+    const sep = i > 0 ? '<span class="sep">›</span>' : '';
+    return `${sep}<span class="${isLast ? 'active' : ''}" onclick="navigateTo(${i})">${l}</span>`;
+  }).join('');
+}
+
+function navigateTo(idx) {
+  // Navigate back to breadcrumb level
+  while(navStack.length > idx) goBack();
+}
+
+// ========== CONTROLS ==========
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('legend-mode').textContent = mode === 'population' ? 'População' : 'PIB per capita';
+  refreshStyles();
+}
+
+function setYear(year) {
+  currentYear = parseInt(year);
+  document.getElementById('year-display').textContent = currentYear;
+  document.getElementById('year-slider').value = currentYear;
+  const isCensus = censusYears.includes(currentYear);
+  document.getElementById('year-sub').textContent = 
+    isCensus ? 'Censo IBGE' : currentYear > 2022 ? 'Projeção estimada' : 'Interpolação';
+  refreshStyles();
+}
+
+function refreshStyles() {
+  if(geoLayer) {
+    geoLayer.eachLayer(layer => {
+      if(layer.feature) layer.setStyle(getStyle(layer.feature));
+    });
+  }
+}
+
+function togglePlay() {
+  playing = !playing;
+  const icon = document.getElementById('play-icon');
+  if(playing) {
+    icon.setAttribute('d', 'M6 4h4v16H6zM14 4h4v16h-4z');
+    let y = currentYear < 2052 ? currentYear : 1991;
+    playInterval = setInterval(() => {
+      y++;
+      if(y > 2052) { togglePlay(); return; }
+      setYear(y);
+    }, 150);
+  } else {
+    icon.setAttribute('d', 'M8 5v14l11-7z');
+    clearInterval(playInterval);
+  }
+}
+
+// ========== FORMATTING ==========
+function formatPop(v) {
+  if(v >= 1000) return (v/1000).toFixed(v >= 10000 ? 1 : 2) + ' mi';
+  return Math.round(v) + ' mil';
+}
+function formatNum(v) {
+  return Math.round(v).toLocaleString('pt-BR');
+}
+
+// ========== TIMELINE TICKS ==========
+function buildTicks() {
+  const container = document.getElementById('tick-marks');
+  const keyYears = [1991, 2000, 2010, 2022, 2030, 2040, 2052];
+  container.innerHTML = keyYears.map(y => {
+    const cls = censusYears.includes(y) ? 'census' : (y > 2022 ? 'projected' : '');
+    return `<span class="${cls}" onclick="setYear(${y})">${y}</span>`;
+  }).join('');
+}
+
+// ========== LOADING ==========
+function showLoading() { document.getElementById('loading').classList.remove('hidden'); }
+function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
+function setProgress(t) { document.getElementById('load-progress').textContent = t; }
+
+// ========== INIT ==========
+async function init() {
+  initMap();
+  buildTicks();
+  
+  document.getElementById('year-slider').addEventListener('input', (e) => setYear(e.target.value));
+  
+  await renderLevel('states', null, 'Brasil');
+  setYear(2022);
+}
+
+init();
+</script>
+</body>
+</html>
