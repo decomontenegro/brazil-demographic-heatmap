@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -186,6 +187,38 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 
 /* Responsive when panel open */
 #right-panel:not(.collapsed)~#map{right:360px}
+
+/* Three.js Particle Canvas */
+#particle-canvas{
+  position:absolute;top:56px;left:0;right:0;bottom:80px;
+  pointer-events:none;z-index:500;
+  transition:opacity .4s
+}
+#particle-canvas.hidden{opacity:0}
+#right-panel:not(.collapsed)~#particle-canvas{right:360px}
+
+/* Particle Toggle Button */
+#particle-toggle{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;font-size:11px;font-weight:500;cursor:pointer;border-radius:6px;
+  color:var(--text3);border:1px solid var(--border);background:var(--surface);
+  font-family:inherit;transition:all .2s
+}
+#particle-toggle:hover{color:var(--text);border-color:var(--border2)}
+#particle-toggle.active{
+  background:linear-gradient(135deg,rgba(255,107,0,.15),rgba(0,102,204,.15));
+  color:var(--ng-orange);border-color:rgba(255,107,0,.4)
+}
+#particle-toggle .pt-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--text4);transition:background .3s
+}
+#particle-toggle.active .pt-dot{
+  background:var(--ng-orange);
+  box-shadow:0 0 8px rgba(255,107,0,.6);
+  animation:pt-pulse 1.5s ease-in-out infinite
+}
+@keyframes pt-pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
@@ -210,6 +243,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div class="header-right">
     <button class="hdr-btn" onclick="exportCSV()">📥 Exportar CSV</button>
     <button class="hdr-btn" id="compare-toggle" onclick="toggleCompareMode()">⚖️ Comparar</button>
+    <button id="particle-toggle" onclick="toggleParticles()" title="Sistema de partículas 3D">
+      <span class="pt-dot"></span>Partículas 3D
+    </button>
   </div>
 </div>
 
@@ -217,6 +253,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <button id="back-btn" onclick="goBack()">← Voltar</button>
 
 <div id="map"></div>
+<canvas id="particle-canvas" class="hidden"></canvas>
 
 <!-- INFO PANEL (hover) -->
 <div id="info-panel">
@@ -997,6 +1034,244 @@ function buildTicks() {
 function showLoading() { document.getElementById('loading').classList.remove('hidden'); }
 function hideLoading() { document.getElementById('loading').classList.add('hidden'); }
 function setProgress(t) { document.getElementById('load-progress').textContent = t; }
+
+// ========== THREE.JS PARTICLE SYSTEM ==========
+const STATE_CENTROIDS = {
+  12:{lat:-8.77,lng:-70.55},  // AC
+  27:{lat:-9.71,lng:-35.73},  // AL
+  13:{lat:-3.47,lng:-65.10},  // AM
+  16:{lat:1.41,lng:-51.77},   // AP
+  29:{lat:-12.96,lng:-38.51}, // BA
+  23:{lat:-3.72,lng:-38.54},  // CE
+  53:{lat:-15.78,lng:-47.93}, // DF
+  32:{lat:-19.19,lng:-40.34}, // ES
+  52:{lat:-15.98,lng:-49.86}, // GO
+  21:{lat:-2.55,lng:-44.30},  // MA
+  31:{lat:-18.10,lng:-44.38}, // MG
+  50:{lat:-20.51,lng:-54.54}, // MS
+  51:{lat:-12.64,lng:-55.42}, // MT
+  15:{lat:-1.45,lng:-52.12},  // PA
+  25:{lat:-7.24,lng:-36.78},  // PB
+  26:{lat:-8.28,lng:-35.07},  // PE
+  22:{lat:-6.60,lng:-42.28},  // PI
+  41:{lat:-24.89,lng:-51.55}, // PR
+  33:{lat:-22.91,lng:-43.17}, // RJ
+  24:{lat:-5.81,lng:-36.59},  // RN
+  11:{lat:-10.83,lng:-63.34}, // RO
+  14:{lat:1.89,lng:-61.22},   // RR
+  43:{lat:-30.03,lng:-51.22}, // RS
+  42:{lat:-27.33,lng:-49.44}, // SC
+  28:{lat:-10.57,lng:-37.45}, // SE
+  35:{lat:-23.55,lng:-46.63}, // SP
+  17:{lat:-10.25,lng:-48.25}  // TO
+};
+
+let ptScene, ptCamera, ptRenderer, ptAnimId;
+let ptGeometry, ptMaterial, ptPoints;
+let ptEnabled = false;
+let ptAnimTime = 0;
+const PT_MAX = 8000; // total particles pool
+
+function initParticles() {
+  const canvas = document.getElementById('particle-canvas');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width || window.innerWidth;
+  canvas.height = rect.height || (window.innerHeight - 56 - 80);
+
+  ptScene = new THREE.Scene();
+  ptCamera = new THREE.OrthographicCamera(
+    -canvas.width / 2, canvas.width / 2,
+    canvas.height / 2, -canvas.height / 2,
+    -1000, 1000
+  );
+  ptCamera.position.z = 100;
+
+  ptRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  ptRenderer.setPixelRatio(window.devicePixelRatio || 1);
+  ptRenderer.setSize(canvas.width, canvas.height);
+  ptRenderer.setClearColor(0x000000, 0);
+
+  buildParticleGeometry();
+  animateParticles();
+
+  // Map events → reposition
+  map.on('zoomend moveend resize', () => { if(ptEnabled) updateParticlePositions(); });
+  window.addEventListener('resize', onParticleResize);
+}
+
+function latLngToCanvas(lat, lng) {
+  const canvas = document.getElementById('particle-canvas');
+  const pt = map.latLngToContainerPoint([lat, lng]);
+  return {
+    x: pt.x - canvas.width / 2,
+    y: canvas.height / 2 - pt.y
+  };
+}
+
+function buildParticleGeometry() {
+  const positions = new Float32Array(PT_MAX * 3);
+  const colors = new Float32Array(PT_MAX * 3);
+  const sizes = new Float32Array(PT_MAX);
+  const phases = new Float32Array(PT_MAX);
+  const speeds = new Float32Array(PT_MAX);
+
+  for(let i = 0; i < PT_MAX; i++) {
+    positions[i*3] = 0; positions[i*3+1] = 0; positions[i*3+2] = -9999;
+    colors[i*3] = 1; colors[i*3+1] = 0.4; colors[i*3+2] = 0;
+    sizes[i] = 2;
+    phases[i] = Math.random() * Math.PI * 2;
+    speeds[i] = 0.3 + Math.random() * 0.7;
+  }
+
+  ptGeometry = new THREE.BufferGeometry();
+  ptGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  ptGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  ptGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  ptGeometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+  ptGeometry.setAttribute('speed', new THREE.BufferAttribute(speeds, 1));
+
+  ptMaterial = new THREE.PointsMaterial({
+    size: 3,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.82,
+    sizeAttenuation: false,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+
+  ptPoints = new THREE.Points(ptGeometry, ptMaterial);
+  ptScene.add(ptPoints);
+}
+
+function updateParticlePositions() {
+  if(!ptGeometry || currentLevel !== 'states') return;
+
+  const positions = ptGeometry.attributes.position.array;
+  const colors = ptGeometry.attributes.color.array;
+  const sizes = ptGeometry.attributes.size.array;
+
+  // Collect state data for normalization
+  const stateIds = Object.keys(STATE_CENTROIDS).map(Number).filter(id => stateData[id]);
+  const pops = stateIds.map(id => projectValue(stateData[id].pop, currentYear));
+  const incs = stateIds.map(id => projectValue(stateData[id].inc, currentYear));
+  const pots = stateIds.map(id => calcPotential(stateData[id], currentYear));
+
+  const maxPop = Math.max(...pops);
+  const minInc = Math.min(...incs), maxInc = Math.max(...incs);
+  const minPot = Math.min(...pots), maxPot = Math.max(...pots);
+
+  // Compute particles per state (proportional to population)
+  const ptCounts = stateIds.map((id, i) => Math.max(3, Math.round((pops[i] / maxPop) * 200)));
+  const totalNeeded = ptCounts.reduce((a,b) => a+b, 0);
+  // Scale so total <= PT_MAX
+  const scale = Math.min(1, PT_MAX / totalNeeded);
+
+  let ptIdx = 0;
+  stateIds.forEach((id, si) => {
+    const d = stateData[id];
+    const centroid = STATE_CENTROIDS[id];
+    const pos = latLngToCanvas(centroid.lat, centroid.lng);
+    const count = Math.round(ptCounts[si] * scale);
+
+    // Income → color (low=red/orange, mid=yellow, high=cyan/blue) — NG palette
+    const tInc = (incs[si] - minInc) / (maxInc - minInc || 1);
+    let r, g, b;
+    if(tInc < 0.5) {
+      const s = tInc / 0.5;
+      r = 1; g = 0.26 + s * 0.5; b = 0;
+    } else {
+      const s = (tInc - 0.5) / 0.5;
+      r = 1 - s * 0.8; g = 0.76 - s * 0.4; b = s * 0.8;
+    }
+
+    // Potential → Z-spread (higher potential = wider spread, more height variation)
+    const tPot = (pots[si] - minPot) / (maxPot - minPot || 1);
+    const spread = 8 + tPot * 40;
+    const zRange = tPot * 60;
+
+    for(let p = 0; p < count && ptIdx < PT_MAX; p++, ptIdx++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * spread;
+      positions[ptIdx*3]   = pos.x + Math.cos(angle) * dist;
+      positions[ptIdx*3+1] = pos.y + Math.sin(angle) * dist;
+      positions[ptIdx*3+2] = (Math.random() - 0.5) * zRange;
+
+      colors[ptIdx*3]   = r + (Math.random() - 0.5) * 0.15;
+      colors[ptIdx*3+1] = g + (Math.random() - 0.5) * 0.15;
+      colors[ptIdx*3+2] = b + (Math.random() - 0.5) * 0.15;
+
+      sizes[ptIdx] = 1.5 + Math.random() * 3 + tPot * 2;
+    }
+  });
+
+  // Hide unused particles
+  for(let i = ptIdx; i < PT_MAX; i++) {
+    positions[i*3+2] = -9999;
+  }
+
+  ptGeometry.attributes.position.needsUpdate = true;
+  ptGeometry.attributes.color.needsUpdate = true;
+  ptGeometry.attributes.size.needsUpdate = true;
+}
+
+function animateParticles() {
+  ptAnimId = requestAnimationFrame(animateParticles);
+  if(!ptEnabled) return;
+
+  ptAnimTime += 0.012;
+  const positions = ptGeometry.attributes.position.array;
+  const phases = ptGeometry.attributes.phase.array;
+  const speeds = ptGeometry.attributes.speed.array;
+
+  // Gentle sine-wave float on Y axis
+  for(let i = 0; i < PT_MAX; i++) {
+    if(positions[i*3+2] < -100) continue; // hidden particle
+    const dy = Math.sin(ptAnimTime * speeds[i] + phases[i]) * 0.4;
+    positions[i*3+1] += dy;
+  }
+  ptGeometry.attributes.position.needsUpdate = true;
+
+  ptRenderer.render(ptScene, ptCamera);
+}
+
+function toggleParticles() {
+  ptEnabled = !ptEnabled;
+  const btn = document.getElementById('particle-toggle');
+  const canvas = document.getElementById('particle-canvas');
+
+  btn.classList.toggle('active', ptEnabled);
+  canvas.classList.toggle('hidden', !ptEnabled);
+
+  if(ptEnabled) {
+    if(!ptScene) {
+      initParticles();
+    }
+    updateParticlePositions();
+  }
+}
+
+function onParticleResize() {
+  if(!ptRenderer || !ptScene) return;
+  const canvas = document.getElementById('particle-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const w = rect.width || window.innerWidth;
+  const h = rect.height || (window.innerHeight - 56 - 80);
+  canvas.width = w;
+  canvas.height = h;
+  ptCamera.left = -w/2; ptCamera.right = w/2;
+  ptCamera.top = h/2; ptCamera.bottom = -h/2;
+  ptCamera.updateProjectionMatrix();
+  ptRenderer.setSize(w, h);
+  if(ptEnabled) updateParticlePositions();
+}
+
+// Hook into setYear so particles update with timeline
+const _origSetYear = setYear;
+function setYear(year) {
+  _origSetYear(year);
+  if(ptEnabled && currentLevel === 'states') updateParticlePositions();
+}
 
 // ========== INIT ==========
 async function init() {
