@@ -192,9 +192,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 #particle-canvas{
   position:absolute;top:56px;left:0;right:0;bottom:80px;
   pointer-events:none;z-index:500;
-  transition:opacity .4s
+  transition:opacity .4s;
+  display:block;
 }
-#particle-canvas.hidden{opacity:0}
+#particle-canvas.hidden{opacity:0;pointer-events:none}
 #right-panel:not(.collapsed)~#particle-canvas{right:360px}
 
 /* Particle Toggle Button */
@@ -779,6 +780,7 @@ function setYear(year) {
   refreshStyles();
   updateRanking();
   updateInsights();
+  onYearChangeParticles();
 }
 
 function refreshStyles() {
@@ -1074,9 +1076,10 @@ const PT_MAX = 8000; // total particles pool
 
 function initParticles() {
   const canvas = document.getElementById('particle-canvas');
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width || window.innerWidth;
-  canvas.height = rect.height || (window.innerHeight - 56 - 80);
+  const w = canvas.offsetWidth || window.innerWidth;
+  const h = canvas.offsetHeight || (window.innerHeight - 56 - 80);
+  canvas.width = w;
+  canvas.height = h;
 
   ptScene = new THREE.Scene();
   ptCamera = new THREE.OrthographicCamera(
@@ -1102,6 +1105,8 @@ function initParticles() {
 function latLngToCanvas(lat, lng) {
   const canvas = document.getElementById('particle-canvas');
   const pt = map.latLngToContainerPoint([lat, lng]);
+  // containerPoint is relative to map div which starts at top:56px
+  // canvas also starts at top:56px, so coords match directly
   return {
     x: pt.x - canvas.width / 2,
     y: canvas.height / 2 - pt.y
@@ -1131,10 +1136,10 @@ function buildParticleGeometry() {
   ptGeometry.setAttribute('speed', new THREE.BufferAttribute(speeds, 1));
 
   ptMaterial = new THREE.PointsMaterial({
-    size: 3,
+    size: 4,
     vertexColors: true,
     transparent: true,
-    opacity: 0.82,
+    opacity: 0.95,
     sizeAttenuation: false,
     blending: THREE.AdditiveBlending,
     depthWrite: false
@@ -1201,7 +1206,7 @@ function updateParticlePositions() {
       colors[ptIdx*3+1] = g + (Math.random() - 0.5) * 0.15;
       colors[ptIdx*3+2] = b + (Math.random() - 0.5) * 0.15;
 
-      sizes[ptIdx] = 1.5 + Math.random() * 3 + tPot * 2;
+      sizes[ptIdx] = 2 + Math.random() * 4 + tPot * 3;
     }
   });
 
@@ -1266,10 +1271,8 @@ function onParticleResize() {
   if(ptEnabled) updateParticlePositions();
 }
 
-// Hook into setYear so particles update with timeline
-const _origSetYear = setYear;
-function setYear(year) {
-  _origSetYear(year);
+// Particle update hook — called from setYear
+function onYearChangeParticles() {
   if(ptEnabled && currentLevel === 'states') updateParticlePositions();
 }
 
